@@ -1,0 +1,13 @@
+---
+title: "SP"
+format: 
+    html:
+        toc: true
+        hmtl-math-method: katex
+        embed-resources: true
+        df-print: kable
+editor: source
+---
+
+## El tipo de transporte usado depende de la escolaridad del usuario
+
