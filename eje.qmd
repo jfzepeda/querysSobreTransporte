@@ -27,7 +27,7 @@ library(bnlearn)
 
 
 ```{r}
-data = read.csv("/Users/juanfelipezepeda/Documents/TEC/Javier 3/redesBayesianas/data/survey.csv", stringsAsFactors = TRUE)
+data = read.csv("/Users/juanfelipezepeda/Documents/TEC/Javier 3/querysSobreTransporte/data/enmt_unam.csv", stringsAsFactors = TRUE)
 head(data)
 ```
 

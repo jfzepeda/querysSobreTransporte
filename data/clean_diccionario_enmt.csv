@@ -1,0 +1,34 @@
+nombre,variable
+Frecuencia de uso — Tren,p1a_1
+Frecuencia de uso — Tren urbano,p1a_2
+Frecuencia de uso — Transporte eléctrico,p1a_3
+Frecuencia de uso — Camión/microbús,p1a_4
+Frecuencia de uso — Colectivo,p1a_5
+Frecuencia de uso — Autobús foráneo,p1a_6
+Frecuencia de uso — BRT,p1a_7
+Frecuencia de uso — Taxi,p1a_8
+Frecuencia de uso — Bicitaxi/mototaxi,p1a_9
+Frecuencia de uso — Transporte escolar o de personal,p1a_10
+Frecuencia de uso — Avión,p1a_11
+Frecuencia de uso — Automóvil particular,p1a_12
+Frecuencia de uso — Tractor,p1a_13
+Frecuencia de uso — Tráiler,p1a_14
+Frecuencia de uso — Motocicleta/cuatrimoto,p1a_15
+Frecuencia de uso — Bicicleta/triciclo,p1a_16
+Frecuencia de uso — Patines/patineta,p1a_17
+Frecuencia de uso — Tracción animal,p1a_18
+Frecuencia de uso — Animal,p1a_19
+Frecuencia de uso — Helicóptero,p1a_20
+Frecuencia de uso — Embarcación mayor,p1a_21
+Frecuencia de uso — Embarcación menor,p1a_22
+Eficiencia del transporte público,p17_1
+Seguridad del transporte público,p17_4
+Sexo de la persona,sexo
+Edad de la persona (grupos),edad_1
+Nivel de escolaridad,escol
+Condición de actividad,cond_act
+Ocupación principal,h21_1
+Tamaño de la localidad,Tam_loc
+Ingreso familiar,ing_fam
+Factor de expansión individual,Pondi2
+Estrato de muestreo,estrato
