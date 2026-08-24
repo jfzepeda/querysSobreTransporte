@@ -1,0 +1,260 @@
+---
+title: "Query: Ingreso, percepción del transporte público y su uso"
+author: "Pablo Ramírez"
+format:
+    html:
+        toc: true
+        html-math-method: katex
+        embed-resources: true
+        self-contained-math: true
+        df-print: kable
+editor: source
+---
+
+## Pregunta
+
+> **¿Las personas con altos ingresos en localidades grandes se mueven en transporte
+> público si lo perciben como eficiente y seguro?**
+
+## Datos
+
+```{r}
+#| eval: false
+#| echo: false
+
+install.packages("bnlearn")
+```
+
+```{r}
+#| message: false
+library(bnlearn)
+```
+
+```{r}
+raw = read.csv("data/clean_enmt_unam.csv", stringsAsFactors = FALSE)
+dim(raw)
+```
+
+```{r}
+tp_cols = c("p1a_1", "p1a_2", "p1a_3", "p1a_4", "p1a_5", "p1a_7")
+
+usa_tp = apply(raw[, tp_cols] == 1, 1, any)
+```
+
+```{r}
+ingreso = ifelse(raw$ing_fam %in% c(7, 8), "alto",
+          ifelse(raw$ing_fam %in% c(5, 6), "medio",
+          ifelse(raw$ing_fam %in% c(2, 3, 4), "bajo",
+                 NA)))
+```
+
+```{r}
+data = data.frame(
+  ING = factor(ingreso, levels = c("bajo", "medio", "alto")),
+  LOC = factor(ifelse(raw$Tam_loc == 1, "grande", "chica"),
+               levels = c("chica", "grande")),
+  EF  = factor(ifelse(raw$p17_1 == 1, "eficiente", "ineficiente"),
+               levels = c("ineficiente", "eficiente")),
+  SEG = factor(ifelse(raw$p17_4 == 1, "seguro", "inseguro"),
+               levels = c("inseguro", "seguro")),
+  TP  = factor(ifelse(usa_tp, "si", "no"),
+               levels = c("no", "si"))
+)
+
+data = na.omit(data)
+head(data)
+```
+
+```{r}
+summary(data)
+```
+
+## Creando la DAG
+
+```{r}
+dag = empty.graph(nodes = c("ING", "LOC", "EF", "SEG", "TP"))
+```
+
+```{r}
+arc_set = matrix(c("ING", "EF",
+                   "ING", "SEG",
+                   "LOC", "EF",
+                   "LOC", "SEG",
+                   "ING", "TP",
+                   "LOC", "TP",
+                   "EF",  "TP",
+                   "SEG", "TP"),
+                 byrow = TRUE, ncol = 2,
+                 dimnames = list(NULL, c("from", "to")))
+```
+
+```{r}
+arcs(dag) = arc_set
+dag
+```
+
+## Estimando los parámetros
+
+```{r}
+bn_mle = bn.fit(dag, data = data, method = "mle")
+```
+
+```{r}
+bn_mle$TP
+```
+
+## Significancia de las dependencias
+
+$$
+H_{0}: TP \perp \!\!\! \perp \text{Padre} \mid \left\{\text{Demás padres}\right\} \quad \quad H_{a}: \text{Dependiente}
+$$
+
+```{r}
+ci.test("TP", "EF", c("ING", "LOC", "SEG"), test = "mi", data = data)
+```
+
+```{r}
+ci.test("TP", "SEG", c("ING", "LOC", "EF"), test = "mi", data = data)
+```
+
+```{r}
+ci.test("TP", "ING", c("LOC", "EF", "SEG"), test = "mi", data = data)
+```
+
+```{r}
+ci.test("TP", "LOC", c("ING", "EF", "SEG"), test = "mi", data = data)
+```
+
+```{r}
+arc.strength(dag, data = data, criterion = "mi")
+```
+
+## Network scores
+
+```{r}
+score(dag, data = data, type = "bic")
+```
+
+```{r}
+score(dag, data = data, type = "aic")
+```
+
+## Aprendiendo la mejor estructura
+
+```{r}
+best_dag = hc(data)
+modelstring(best_dag)
+```
+
+```{r}
+score(best_dag, data = data, type = "bic")
+```
+
+```{r}
+score(best_dag, data = data, type = "aic")
+```
+
+```{r}
+#| eval: false
+#| echo: false
+install.packages("BiocManager")
+BiocManager::install("Rgraphviz")
+```
+
+```{r}
+graphviz.plot(best_dag, shape = "ellipse")
+```
+
+## Respondiendo la query
+
+```{r}
+bn = bn.fit(best_dag, data = data)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn,
+        event = (TP == "si"),
+        evidence = (ING == "alto") & (LOC == "grande") &
+                   (EF == "eficiente") & (SEG == "seguro"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn,
+        event = (TP == "si"),
+        evidence = (ING == "alto") & (LOC == "grande") &
+                   (EF == "ineficiente") & (SEG == "inseguro"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn,
+        event = (TP == "si"),
+        evidence = list(ING = "alto", LOC = "grande",
+                        EF = "eficiente", SEG = "seguro"),
+        method = "lw", n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn,
+        event = (TP == "si"),
+        evidence = list(ING = "alto", LOC = "grande",
+                        EF = "ineficiente", SEG = "inseguro"),
+        method = "lw", n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (TP == "si"),
+        evidence = (ING == "alto") & (LOC == "grande") &
+                   (EF == "eficiente") & (SEG == "seguro"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (TP == "si"),
+        evidence = (ING == "alto") & (LOC == "grande") &
+                   (EF == "ineficiente") & (SEG == "inseguro"),
+        n = 10^6)
+```
+
+## Resumen ejecutivo
+
+**Variables** (927 de 1,191 registros; se descartó `ing_fam = 0`, código no documentado):
+
+| Nodo | Origen | Niveles |
+|---|---|---|
+| `TP` | `p1a_1` a `p1a_5`, `p1a_7` | usa cotidianamente transporte público urbano: si / no |
+| `ING` | `ing_fam` | bajo (≤3 SM) / medio (3–5 SM) / alto (>5 SM) |
+| `LOC` | `Tam_loc` | grande (≥100 mil hab.) / chica |
+| `EF` | `p17_1` | eficiente / ineficiente |
+| `SEG` | `p17_4` | seguro / inseguro |
+
+**Resultado: sí.**
+
+$\mathbb{P}(TP = \text{si})$ entre personas con $ING = \text{alto}$ y $LOC = \text{grande}$:
+
+| Red | Eficiente y seguro | Ineficiente e inseguro | Diferencia |
+|---|---|---|---|
+| Hill-climbing (logic sampling) | 0.7040 | 0.5057 | +19.8 pp |
+| Hill-climbing (likelihood weighting) | 0.7057 | 0.5045 | +20.1 pp |
+| DAG propuesta (logic sampling) | 0.5891 | 0.5389 | +5.0 pp |
+
+Entre personas de ingreso alto en localidades grandes, quienes perciben el transporte
+público como eficiente y seguro lo usan con mayor probabilidad. El resultado apunta en
+la misma dirección con ambas DAGs y ambos métodos de inferencia.
+
+Dos matices:
+
+- La dependencia significativa es con la **eficiencia** ($p$ = 0.0017), no con la
+  seguridad ($p$ = 0.2545). La eficiencia percibida es la que carga con la relación.
+- El hill-climbing invierte el arco a $TP \rightarrow EF$: quien usa el transporte a
+  diario es quien se forma la opinión. Como se vio en clase, la interpretación causal
+  es difícil de justificar, así que hablamos de dependencia y no de efectos causales.
