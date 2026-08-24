@@ -1,0 +1,4 @@
+"0","arc_set = matrix(c(""escol"",""p1a_6"", "
+"0","                   ""escol"",""p1a_12""),"
+"0","                 byrow = TRUE, ncol = 2,"
+"0","                 dimnames = list(NULL, c(""from"", ""to"")))"

@@ -1,0 +1,64 @@
+---
+title: "Redes bayesianas multinomiales"
+format: 
+    html:
+        toc: true
+        hmtl-math-method: katex
+        embed-resources: true
+        df-print: kable
+editor: source
+---
+```{r}
+#| eval: false
+#| echo: false
+
+install.packages("bnlearn")
+```
+
+```{r}
+#install.packages("bnlearn")
+library(bnlearn)
+data = read.csv("data/clean_enmt_unam.csv", stringsAsFactors = TRUE)
+head(data)
+```
+```{r}
+data_bn <- data[, c("p1a_6", "p1a_12", "escol")]
+```
+
+```{r}
+dag = empty.graph(nodes = c("p1a_6", "p1a_12", "escol"))
+```
+
+```{r}
+arc_set = matrix(c("escol","p1a_6", 
+                   "escol","p1a_12"),
+                 byrow = TRUE, ncol = 2,
+                 dimnames = list(NULL, c("from", "to")))
+```
+
+```{r}
+arcs(dag) = arc_set
+```
+
+```{r}
+data_bn$p1a_6 <- as.factor(data_bn$p1a_6)
+data_bn$p1a_12 <- as.factor(data_bn$p1a_12)
+data_bn$escol <- as.factor(data_bn$escol)
+```
+
+```{r}
+bn_mle = bn.fit(dag, data = data_bn, method = "mle")
+```
+```{r}
+bn_mle$escol
+```
+
+```{r}
+bn_mle$p1a_6
+```
+
+```{r}
+bn_mle$p1a_12
+```
+
+

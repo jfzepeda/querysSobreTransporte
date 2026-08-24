@@ -1,0 +1,4 @@
+"0","#install.packages(""bnlearn"")"
+"0","library(bnlearn)"
+"0","data = read.csv(""data/clean_enmt_unam.csv"", stringsAsFactors = TRUE)"
+"0","head(data)"

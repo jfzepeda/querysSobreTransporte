@@ -1,0 +1,4 @@
+"0","bn_mle = bn.fit(dag, data = data, method = ""mle"")"
+"2","Error in data.type(x) : 
+  variable p1a_1 is not supported in bnlearn (type: integer).
+"

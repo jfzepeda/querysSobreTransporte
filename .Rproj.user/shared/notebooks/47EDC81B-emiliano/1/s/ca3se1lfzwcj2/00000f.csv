@@ -1,0 +1,3 @@
+"0","data_bn$p1a_6 <- as.factor(data_bn$p1a_6)"
+"0","data_bn$p1a_12 <- as.factor(data_bn$p1a_12)"
+"0","data_bn$escol <- as.factor(data_bn$escol)"

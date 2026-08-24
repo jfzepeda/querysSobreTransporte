@@ -1,0 +1,22 @@
+"0","arcs
+"
+"1","function (x) 
+"
+"1","{
+"
+"1","    if (missing(x) || !is(x, c(""bn"", ""scm"", ""bn.fit""))) 
+"
+"1","        stop(""an object of class 'bn', 'scm' or 'bn.fit' is required."")
+"
+"1","    if (is(x, c(""bn"", ""scm""))) 
+"
+"1","        x$arcs
+"
+"1","    else fit2arcs(x)
+"
+"1","}
+"
+"1","<bytecode: 0x0000023af4973c60>
+"
+"1","<environment: namespace:bnlearn>
+"

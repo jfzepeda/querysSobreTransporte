@@ -1,0 +1,132 @@
+---
+title: "SP"
+format: 
+    html:
+        toc: true
+        hmtl-math-method: katex
+        embed-resources: true
+        df-print: kable
+editor: source
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+```{r}
+#| eval: false
+#| echo: false
+
+install.packages("bnlearn")
+```
+
+
+```{r}
+library(bnlearn)
+```
+
+
+```{r}
+data = read.csv("/Users/juanfelipezepeda/Documents/TEC/Javier 3/querysSobreTransporte/data/clean_enmt_unam.csv", stringsAsFactors = TRUE)
+head(data)
+```
+
+```{r}
+dag = empty.graph(nodes = c("A", "S", "E", "O", "R", "T"))
+```
+
+```{r}
+arc_set = matrix(c("A", "E",
+                   "S", "E",
+                   "E", "O",
+                   "E", "R",
+                   "O", "T",
+                   "R", "T"),
+                 byrow = TRUE, ncol = 2,
+                 dimnames = list(NULL, c("from", "to")))
+```
+
+```{r}
+arcs(dag) = arc_set
+dag
+```
+
+
+```{r}
+bn_mle = bn.fit(dag, data = data, method = "mle")
+bn_mle
+```
+
+```{r}
+bn_mle$E
+bn_mle$O
+```
+
+```{r}
+ci.test('T', 'E', c('O','R'), test = 'mi', data = data)
+```
+
+```{r}
+ci.test('T', 'E', c('O','R'), test = 'x2', data = data)
+```
+
+```{r}
+ci.test('T', 'O', 'R', test = 'mi', data = data)
+```
+
+```{r}
+arc.strength(dag, data = data, criterion = "mi")
+```
+
+```{r}
+score(dag, data = data, type = "bic")
+```
+
+```{r}
+score(dag, data = data, type = "aic")
+```
+
+```{r}
+best_dag = hc(data)
+best_dag
+```
+
+```{r}
+modelstring(best_dag)
+```
+
+```{r}
+score(best_dag, data = data, type = 'bic')
+score(best_dag, data = data, type = 'aic')
+```
+
+```{r}
+#| eval: false
+#| echo: false
+install.packages("BiocManager")
+BiocManager::install("Rgraphviz")
+```
+
+```{r}
+graphviz.plot(best_dag, shape = "ellipse")
+```
+
+```{r}
+bn = bn.fit(best_dag, data = data)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn, event = (T == "train") & (S == "F"), evidence = (E == "uni"), n = 10^6)
+```
+
+
+```{r}
+cpquery(bn, event = (T == "train") & (S == "F"), evidence = list(E = "uni"), method = "lw")
+```
+
+*¿La condición física de una persona impacta en la frecuencia del uso de automóvil en las grandes ciudades*
+(p1a_12) & (tam_loc) | cond_act
+```{r}
+cpquery(bn, event = (p1a_12 == "alto") & (tam_loc == "grande"), evidence = (cond_act == "baja") | (cond_act == "alta"), n = 10^6)
+```
