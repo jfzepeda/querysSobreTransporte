@@ -9,9 +9,44 @@ format:
 editor: source
 ---
 
-## Quarto
+## Introducción
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+Este documento ajusta una **red bayesiana multinomial (discreta)** sobre la
+ENMT (Encuesta Nacional de Movilidad y Transporte), para responder preguntas del
+tipo "¿qué probabilidad hay de que una persona use cierto medio de transporte,
+dado su nivel de estudios / edad / ingreso?".
+
+En una red discreta cada nodo es una variable categórica y su parámetro es una
+**tabla de probabilidad condicional (CPT)**: $P(X_i \mid \text{pa}(X_i))$. Todas
+las columnas deben ser `factor`.
+
+El flujo es:
+
+1. Cargar los datos ya limpiados por `clean.py` (33 columnas seleccionadas).
+2. Definir un DAG a mano con conocimiento del dominio.
+3. Ajustar las CPTs con `bn.fit()`.
+4. Contrastar la estructura propuesta (pruebas de independencia, scores) contra
+   una estructura aprendida automáticamente con `hc()`.
+5. Responder preguntas con `cpquery()` (inferencia aproximada por muestreo).
+
+::: {.callout-warning}
+## Estado del documento
+
+Este archivo parte de la **plantilla del dataset `survey`** del libro de
+Scutari, cuyos nodos son `A` (age), `S` (sex), `E` (education), `O` (occupation),
+`R` (residence) y `T` (travel). La adaptación a la ENMT está **a medias**:
+
+- Los nombres de la ENMT ya se usan en `arc_set` (`edad_1`, `escol`, …).
+- Pero `empty.graph()` sigue declarando los nodos `A`, `S`, `E`, `O`, `R`, `T`,
+  y todo lo que viene después de `bn.fit()` sigue referenciando esos nombres.
+
+Los bloques afectados están marcados abajo con **[plantilla]**. Tal como está,
+`arcs(dag) = arc_set` falla porque los nodos de `arc_set` no existen en `dag`.
+:::
+
+## Paquetes
+
+Instalación manual; el chunk no corre al renderizar.
 
 ```{r}
 #| eval: false
@@ -20,63 +55,208 @@ Quarto enables you to weave together content and executable code into a finished
 install.packages("bnlearn")
 ```
 
-
 ```{r}
 library(bnlearn)
 ```
 
+## Datos
+
+`clean_enmt_unam.csv` lo produce `clean.py`: toma `enmt_unam.csv`
+(698 columnas, codificado en `latin-1`) y se queda con 33 variables — las 22 de
+frecuencia de uso por medio de transporte (`p1a_1` … `p1a_22`), dos de
+percepción del transporte público y los sociodemográficos.
+
+Ojo con `stringsAsFactors = TRUE`: aquí **no hace nada**, porque el CSV no tiene
+ni una columna de texto — todo son códigos numéricos (`sexo` = 1/2, `escol` = 2,
+…). Sin la conversión explícita del siguiente chunk, todas las columnas entran
+como `integer` y `bn.fit()` falla, porque una red multinomial exige `factor`.
+
+Variables usadas en el DAG:
+
+| Código    | Significado                          |
+|-----------|--------------------------------------|
+| `edad_1`  | Edad de la persona (grupos)          |
+| `sexo`    | Sexo de la persona                   |
+| `escol`   | Nivel de escolaridad                 |
+| `estrato` | Estrato de muestreo                  |
+| `h21_1`   | Ocupación principal                  |
+| `Tam_loc` | Tamaño de la localidad               |
+| `ing_fam` | Ingreso familiar                     |
+| `p17_1`   | Eficiencia del transporte público    |
+| `p17_4`   | Seguridad del transporte público     |
+| `p1a_12`  | Frecuencia de uso — Automóvil particular |
 
 ```{r}
-data = read.csv("/Users/juanfelipezepeda/Documents/TEC/Javier 3/querysSobreTransporte/data/enmt_unam.csv", stringsAsFactors = TRUE)
+data = read.csv("/Users/juanfelipezepeda/Documents/TEC/Javier 3/querysSobreTransporte/data/clean_enmt_unam.csv", stringsAsFactors = TRUE)
 head(data)
 ```
 
-```{r}
-dag = empty.graph(nodes = c("A", "S", "E", "O", "R", "T"))
-```
+Se recorta a los 10 nodos del DAG y se convierten a `factor`. Las dos cosas son
+necesarias: `bn.fit()` valida el data frame **completo**, así que aunque el DAG
+no incluya `p1a_1` ni `Pondi2`, basta con que sigan en `data` para que truene.
+(`Pondi2` además es el factor de expansión muestral: un número de verdad, no una
+categoría.) Al agregar los `p1a_1` … `p1a_22` pendientes, solo se añaden al
+vector `nodos`.
 
 ```{r}
-arc_set = matrix(c("A", "E",
-                   "S", "E",
-                   "E", "O",
-                   "E", "R",
-                   "O", "T",
-                   "R", "T"),
+nodos = c("edad_1", "estrato", "escol", "sexo", "h21_1",
+          "Tam_loc", "ing_fam", "p17_1", "p17_4", "p1a_12")
+
+data = data[, nodos]
+data[] = lapply(data, factor)
+str(data)
+```
+
+## Estructura de la red
+
+Se construye el DAG en dos pasos: primero un grafo vacío con los nodos, después
+se le asignan los arcos. Es la alternativa a `model2network()` cuando hay muchos
+arcos y conviene listarlos como tabla.
+
+Los 10 nodos son exactamente los que aparecen en `arc_set`: si `empty.graph()`
+declarara alguno de más o de menos, `arcs(dag) = arc_set` fallaría.
+
+```{r}
+dag = empty.graph(nodes = c("edad_1", "estrato", "escol", "sexo", "h21_1",
+                            "Tam_loc", "ing_fam", "p17_1", "p17_4", "p1a_12"))
+```
+
+Cada renglón de la matriz es un arco `from → to`. Con `byrow = TRUE` la matriz se
+llena por renglones, así que se lee como una lista de pares. La estructura
+propuesta es:
+
+- `edad_1 → escol`, `estrato → escol` — la escolaridad depende de la edad y del
+  estrato socioeconómico.
+- `escol → h21_1`, `sexo → h21_1` — la ocupación depende de la escolaridad y del
+  sexo.
+- `h21_1 → ing_fam`, `Tam_loc → ing_fam` — el ingreso familiar depende de la
+  ocupación y del tamaño de localidad.
+- `Tam_loc → p17_1`, `Tam_loc → p17_4` — la percepción de eficiencia y seguridad
+  del transporte público depende del tamaño de la localidad.
+- `ing_fam → p1a_12`, `p17_1 → p1a_12`, `p17_4 → p1a_12` — el uso del automóvil
+  particular depende del ingreso y de qué tan mal se percibe el transporte
+  público.
+
+Es decir, los sociodemográficos influyen en el uso del auto solo de forma
+**indirecta**, vía ingreso y percepción del transporte público. El comentario
+`# Aqui son los nodos p1-22` marca dónde entrarían el resto de los medios de
+transporte (`p1a_1` … `p1a_22`), aún pendientes.
+
+```{r}
+arc_set = matrix(c("edad_1", "escol",
+                   "estrato", "escol",
+                   "escol", "h21_1",
+                   "sexo", "h21_1",
+                   "h21_1", "ing_fam",
+                   "Tam_loc", "ing_fam",
+                   "Tam_loc", "p17_1",
+                   "Tam_loc", "p17_4",
+                #    Aqui son los nodos p1-22
+                   "ing_fam", "p1a_12",
+                   "p17_1", "p1a_12",
+                   "p17_4", "p1a_12"
+                   ),
                  byrow = TRUE, ncol = 2,
                  dimnames = list(NULL, c("from", "to")))
 ```
+
+`arcs(dag) =` inyecta los arcos y valida que el resultado siga siendo acíclico.
+Imprimir `dag` muestra el modelo, los arcos y el tamaño del espacio de
+parámetros.
 
 ```{r}
 arcs(dag) = arc_set
 dag
 ```
 
+Visualizacion de grafico de nodos con `graphviz`
+
+```{r}
+graphviz.plot(dag, shape = "ellipse")
+```
+
+## Ajuste de parámetros
+
+Con la estructura fija, `bn.fit()` estima las CPTs. `method = "mle"` usa máxima
+verosimilitud, es decir, frecuencias relativas observadas. La alternativa es
+`method = "bayes"`, que suaviza con un prior — preferible cuando alguna
+combinación de padres tiene pocas observaciones (con 1191 filas y padres de
+varios niveles, aquí es un riesgo real: las CPTs con celdas vacías salen `NaN`).
 
 ```{r}
 bn_mle = bn.fit(dag, data = data, method = "mle")
 bn_mle
 ```
 
+**[plantilla]** Inspección de nodos individuales; `E` y `O` son nodos de
+`survey`. El equivalente aquí sería `bn_mle$escol` y `bn_mle$h21_1`.
+
 ```{r}
-bn_mle$E
-bn_mle$O
+#| echo: false
+bn_mle$escol
+bn_mle$h21_1
+```
+
+## Pruebas de independencia condicional
+
+**[plantilla — todos los bloques de esta sección]**
+
+`ci.test()` prueba $H_0$: los dos primeros argumentos son independientes dado el
+tercero. Un p-valor grande apoya la independencia, y por tanto la ausencia de un
+arco directo entre ambos. Sirve para justificar la estructura propuesta.
+
+`test = 'mi'` usa información mutua (razón de verosimilitudes); `test = 'x2'` usa
+la ji-cuadrada de Pearson. Ambas son asintóticamente equivalentes, así que se
+corren las dos como verificación cruzada.
+
+```{r}
+set.seed(1)
+ci.test('p1a_12', 'h21_1', c('p17_1','p17_4'), test = 'mi', data = data)
 ```
 
 ```{r}
-ci.test('T', 'E', c('O','R'), test = 'mi', data = data)
+ci.test('p1a_12', 'h21_1', c('p17_1','p17_4'), test = 'x2', data = data)
 ```
 
 ```{r}
-ci.test('T', 'E', c('O','R'), test = 'x2', data = data)
+ci.test('p1a_12', 'h21_1', c('p17_1','p17_4'), test = 'mc-x2', data = data)
+```
+
+**Aquí se condiciona en una sola variable en lugar de dos.**
+
+```{r}
+ci.test('p1a_12', 'h21_1', 'p17_1', test = 'x2', data = data)
 ```
 
 ```{r}
-ci.test('T', 'O', 'R', test = 'mi', data = data)
+ci.test('p1a_12', 'h21_1', 'p17_4', test = 'x2', data = data)
 ```
+
+ > Hay evidencia (p ≈ 0.04 por permutación) de que el uso del automóvil particular se relaciona con la ocupación, aun controlando por la eficiencia percibida del transporte público — y por separado, aun controlando por la seguridad percibida. La asociación es consistente con el modelo propuesto, en el que la ocupación influye sobre el uso del auto a través del ingreso familiar.
+
+**!IMPORTANTE!**
+### Aquí deja de renderizarse el notebook, y queda el resto de codigo como plantilla
+
+```{r}
+#| include: false
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+## Fuerza de los arcos y scores del modelo
+
+`arc.strength()` cuantifica qué tanto se pierde al quitar cada arco. Con
+`criterion = "mi"` reporta el p-valor de la prueba de independencia
+correspondiente: valores cercanos a 0 indican arcos que sí hacen falta.
 
 ```{r}
 arc.strength(dag, data = data, criterion = "mi")
 ```
+
+`score()` da un valor global de qué tan bien la estructura explica los datos,
+penalizando la complejidad. BIC penaliza más que AIC, así que tiende a elegir
+redes más simples. **Son negativos y sirven para comparar: menos negativo es
+mejor.** Solo tienen sentido comparados contra otra estructura sobre los mismos
+datos — que es justo lo que se hace más abajo con `best_dag`.
 
 ```{r}
 score(dag, data = data, type = "bic")
@@ -86,19 +266,45 @@ score(dag, data = data, type = "bic")
 score(dag, data = data, type = "aic")
 ```
 
+## Aprendizaje de estructura
+
+En lugar de proponer el DAG a mano, `hc()` (*hill-climbing*) lo busca: parte de
+un grafo vacío y va agregando, quitando o invirtiendo arcos, quedándose en cada
+paso con el cambio que más sube el score. Es un método voraz, así que puede caer
+en un óptimo local.
+
+::: {.callout-note}
+`hc(data)` corre sobre **las 33 columnas** del data frame, no solo sobre las 10
+del DAG propuesto. Incluye `Pondi2`, que es el factor de expansión muestral
+(numérico, no categórico) — mezclar numéricas y factores hace fallar el ajuste
+discreto. Conviene pasarle un subconjunto: `hc(data[, c("edad_1", "escol", ...)])`.
+:::
+
 ```{r}
 best_dag = hc(data)
 best_dag
 ```
 
+`modelstring()` convierte el DAG aprendido a la notación compacta
+`[hijo|padre1:padre2]`, útil para copiarla a `model2network()` y reproducir la
+estructura sin volver a correr la búsqueda.
+
 ```{r}
 modelstring(best_dag)
 ```
+
+La comparación clave: estos scores contra los de `dag`. Si los de `best_dag` son
+mejores (menos negativos), la estructura propuesta a mano está dejando
+información sobre la mesa.
 
 ```{r}
 score(best_dag, data = data, type = 'bic')
 score(best_dag, data = data, type = 'aic')
 ```
+
+Graficar requiere `Rgraphviz`, que vive en Bioconductor y no en CRAN — por eso se
+instala vía `BiocManager` y no con `install.packages()`. Alternativa sin
+dependencias: `plot(best_dag)`.
 
 ```{r}
 #| eval: false
@@ -111,21 +317,44 @@ BiocManager::install("Rgraphviz")
 graphviz.plot(best_dag, shape = "ellipse")
 ```
 
+## Consultas condicionales
+
+Se reajustan las CPTs, ahora sobre la estructura aprendida, para poder consultar
+el modelo.
+
 ```{r}
 bn = bn.fit(best_dag, data = data)
 ```
+
+**[plantilla — todos los bloques de esta sección]**
+
+`cpquery()` estima $P(\text{event} \mid \text{evidence})$ por **simulación**, no
+de forma exacta: genera `n` observaciones de la red y calcula la proporción. Por
+eso hace falta `set.seed()` para reproducir el resultado, y por eso `n = 10^6`
+— con pocas muestras la estimación es ruidosa, sobre todo si la evidencia es
+poco probable.
 
 ```{r}
 set.seed(42)
 cpquery(bn, event = (T == "train") & (S == "F"), evidence = (E == "uni"), n = 10^6)
 ```
 
+`method = "lw"` (*likelihood weighting*) es la alternativa al muestreo por
+rechazo: en lugar de descartar las simulaciones que no cumplen la evidencia, la
+fija y pondera. Es mucho más eficiente cuando la evidencia es rara, pero exige
+pasarla como `list(E = "uni")` en vez de como expresión.
 
 ```{r}
 cpquery(bn, event = (T == "train") & (S == "F"), evidence = list(E = "uni"), method = "lw")
 ```
 
 ### Quien se transporta más en tren, jovenes en la universidad o adultos?
+
+Nota: en ambos bloques `event` fija el sexo, así que lo que se compara en
+realidad es el uso del tren por sexo bajo la misma evidencia
+(universitario joven **o** adulto), no jóvenes contra adultos. Para contrastar
+jóvenes vs. adultos habría que correr dos consultas cambiando la `evidence`.
+
 **Mujeres**
 ```{r}
 cpquery(bn, event = (T == "train") & (S == "M"), evidence = (E == "uni" & A == "young") | (A == "adult"), n = 10^6)
