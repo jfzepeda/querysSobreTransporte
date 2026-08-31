@@ -59,7 +59,9 @@ install.packages("bnlearn")
 library(bnlearn)
 ```
 
-## Datos
+## Construcción de las variables
+
+### Datos — transporte público
 
 `clean_enmt_unam.csv` lo produce `clean.py`: toma `enmt_unam.csv`
 (698 columnas, codificado en `latin-1`) y se queda con 33 variables — las 22 de
@@ -87,7 +89,7 @@ Variables usadas en el dag_jf:
 | `uso_tp`  | **[artificial]** Uso de transporte público (ver abajo) |
 
 ```{r}
-data = read.csv("/Users/juanfelipezepeda/Documents/TEC/Javier 3/querysSobreTransporte/data/clean_enmt_unam.csv", stringsAsFactors = TRUE)
+data = read.csv("data/clean_enmt_unam.csv", stringsAsFactors = TRUE)
 head(data)
 ```
 
@@ -154,7 +156,24 @@ data[] = lapply(data, factor)
 str(data)
 ```
 
-## Estructura de la red
+### Datos — infraestructura vial
+
+PAV es cómo califica la persona las calles de su colonia y de su ciudad, ACE los
+puentes peatonales y NOR qué tanto dice cumplir las reglas de tránsito. Son 806
+personas de la ENMT.
+
+```{r}
+data_pablo = read.csv("data/clean_enmt_vial.csv", stringsAsFactors = TRUE)
+head(data_pablo)
+```
+
+```{r}
+summary(data_pablo)
+```
+
+## DAGs propuestas
+
+### DAG 1 — uso del transporte público
 
 Se construye el dag_jf en dos pasos: primero un grafo vacío con los nodos, después
 se le asignan los arcos. Es la alternativa a `model2network()` cuando hay muchos
@@ -224,17 +243,38 @@ Visualizacion de grafico de nodos con `graphviz`
 graphviz.plot(dag_jf, shape = "ellipse")
 ```
 
+### DAG 2 — infraestructura vial y normas de tránsito
+
 ```{r}
-score(dag_jf, data = data, type = 'bic')
-score(dag_jf, data = data, type = 'aic')
+dag_pablo = empty.graph(nodes = c("LOC", "EDAD", "PAV", "ACE", "NOR"))
 ```
 
 ```{r}
-best_dag = hc(data)
-best_dag
+arc_set_pablo = matrix(c("LOC",  "PAV",
+                   "LOC",  "ACE",
+                   "EDAD", "PAV",
+                   "EDAD", "ACE",
+                   "LOC",  "NOR",
+                   "EDAD", "NOR",
+                   "PAV",  "NOR",
+                   "ACE",  "NOR"),
+                 byrow = TRUE, ncol = 2,
+                 dimnames = list(NULL, c("from", "to")))
 ```
 
-## Ajuste de parámetros
+```{r}
+arcs(dag_pablo) = arc_set_pablo
+dag_pablo
+```
+
+
+```{r}
+graphviz.plot(dag_pablo, shape = "ellipse")
+```
+
+## Construcción de la red bayesiana
+
+### Red 1 — ajuste de parámetros sobre la DAG de transporte público
 
 Con la estructura fija, `bn.fit()` estima las CPTs. `method = "mle"` usa máxima
 verosimilitud, es decir, frecuencias relativas observadas. La alternativa es
@@ -256,7 +296,17 @@ bn_mle$escol
 bn_mle$h21_1
 ```
 
-## Pruebas de independencia condicional
+### Red 2 — ajuste de parámetros sobre la DAG vial
+
+```{r}
+bn_mle_pablo = bn.fit(dag_pablo, data = data_pablo, method = "mle")
+```
+
+```{r}
+bn_mle_pablo$NOR
+```
+
+## Significancia de las relaciones de dependencia
 
 `ci.test()` prueba $H_0$: los dos primeros argumentos son independientes dado el
 tercero. Un p-valor grande apoya la independencia, y por tanto la ausencia de un
@@ -265,6 +315,8 @@ arco directo entre ambos. Sirve para justificar la estructura propuesta.
 `test = 'mi'` usa información mutua (razón de verosimilitudes); `test = 'x2'` usa
 la ji-cuadrada de Pearson. Ambas son asintóticamente equivalentes, así que se
 corren las dos como verificación cruzada.
+
+### Red 1 — transporte público
 
 ```{r}
 set.seed(1)
@@ -296,7 +348,118 @@ apenas al borde (p ≈ 0.04 por permutación). Al agregar los siete modos públi
 en `uso_tp` la señal es mucho más limpia: colapsar reduce los grados de libertad
 y concentra la frecuencia en tres celdas en lugar de repartirla.
 
-## Respuesta a la pregunta
+### Red 2 — infraestructura vial
+
+```{r}
+ci.test("NOR", "PAV", c("LOC", "EDAD", "ACE"), test = "mi", data = data_pablo)
+```
+
+```{r}
+ci.test("NOR", "ACE", c("LOC", "EDAD", "PAV"), test = "mi", data = data_pablo)
+```
+
+```{r}
+ci.test("NOR", "LOC", c("EDAD", "PAV", "ACE"), test = "mi", data = data_pablo)
+```
+
+```{r}
+ci.test("NOR", "EDAD", c("LOC", "PAV", "ACE"), test = "mi", data = data_pablo)
+```
+
+```{r}
+arc.strength(dag_pablo, data = data_pablo, criterion = "mi")
+```
+
+### Red 2 — revisión con otro indicador
+
+```{r}
+data_pablo_alt = read.csv("data/clean_enmt_vial_alt.csv", stringsAsFactors = TRUE)
+summary(data_pablo_alt)
+```
+
+```{r}
+ci.test("NOR", "ACE", c("LOC", "EDAD", "PAV"), test = "mi", data = data_pablo_alt)
+```
+
+```{r}
+ci.test("NOR", "PAV", c("LOC", "EDAD", "ACE"), test = "mi", data = data_pablo_alt)
+```
+
+## ¿Cuál es la red que mejor se ajusta a los datos?
+
+### Network scores — red 1
+
+```{r}
+score(dag_jf, data = data, type = 'bic')
+score(dag_jf, data = data, type = 'aic')
+```
+
+### Network scores — red 2
+
+```{r}
+score(dag_pablo, data = data_pablo, type = "bic")
+```
+
+```{r}
+score(dag_pablo, data = data_pablo, type = "aic")
+```
+
+## Mejor estructura con hill-climbing
+
+### Red 1
+
+```{r}
+best_dag = hc(data)
+best_dag
+```
+
+### Red 2
+
+```{r}
+best_dag_pablo = hc(data_pablo)
+modelstring(best_dag_pablo)
+```
+
+```{r}
+score(best_dag_pablo, data = data_pablo, type = "bic")
+```
+
+```{r}
+score(best_dag_pablo, data = data_pablo, type = "aic")
+```
+
+```{r}
+graphviz.plot(best_dag_pablo, shape = "ellipse")
+```
+
+## Pertinencia de las relaciones de la nueva DAG
+
+Después hc() arma la red por su cuenta, sin que le digamos qué flechas poner, y
+devuelve [LOC][EDAD][PAV][NOR][ACE|PAV]. Ahí NOR aparece solo, sin una sola flecha
+que le entre: el algoritmo concluyó que ninguna de las otras variables ayuda a predecir
+el cumplimiento. Por eso los últimos dos cpquery dan 0.6865 y 0.6864,en esa red da igual cómo califiques tus calles.
+
+Tres detalles:
+
+- **Los números no van en orden.** Las cuatro combinaciones de PAV y ACE dan 73 (bien
+  las dos), 70 (mal las dos), 59 (bien el pavimento pero mal las aceras) y 54 (al revés).
+  Si la relación fuera real, 73 debería ser el más alto, 70 el más bajo y los mixtos
+  quedar en medio. Pasa lo contrario: los mixtos son los más bajos de los cuatro. Además
+  son los dos grupos más chicos de la muestra, así que sus porcentajes se mueven mucho
+  con pocos casos. Ese desorden es lo que hace que hc() tire los arcos.
+- **La pregunta mide autoimagen.** p31 pregunta qué tanto cumple uno mismo, no qué
+  tanto cumplen los demás. En el summary se ve el efecto: 554 de las 806 personas
+  quedan en alto y solo 252 en bajo. Con casi todos amontonados del mismo lado queda
+  poco margen para que aparezcan diferencias entre grupos.
+- **El resultado depende del reactivo.** La ENMT no pregunta por banquetas, así que ACE
+  usa puentes peatonales. En la sección de significancia se repite todo con señalamientos
+  viales: ahí el ci.test de ACE baja a 0.0097, que sí es significativo, mientras que el de
+  PAV se queda en 0.229. Parece entonces que lo que se relaciona con el cumplimiento
+  declarado es la señalización, no el estado del piso.
+
+## Respuesta a las queries
+
+### Query 1 — uso del transporte público
 
 > **¿Cuál es la probabilidad de que personas con altos ingresos en localidades
 > grandes se muevan en transporte público si es eficiente y seguro?**
@@ -371,3 +534,67 @@ prop.table(table(sub$uso_tp))
 37 de 61 = 60.7 % cotidiano en la muestra directa, contra 59 % que estima la red.
 Concuerdan, así que el resultado no depende de la estructura impuesta.
 
+### Query 2 — infraestructura vial y normas de tránsito
+
+> **¿Existe una diferencia en la percepción sobre el cumplimiento de las normas de
+> tránsito entre las personas que consideran que el pavimento y las aceras de su
+> localidad se encuentran en buen estado y aquellas que consideran que no?**
+
+```{r}
+bn_pablo = bn.fit(best_dag_pablo, data = data_pablo)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle_pablo,
+        event = (NOR == "alto"),
+        evidence = (PAV == "bueno") & (ACE == "bueno"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle_pablo,
+        event = (NOR == "alto"),
+        evidence = (PAV == "malo") & (ACE == "malo"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle_pablo,
+        event = (NOR == "alto"),
+        evidence = (PAV == "bueno") & (ACE == "malo"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle_pablo,
+        event = (NOR == "alto"),
+        evidence = (PAV == "malo") & (ACE == "bueno"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_pablo,
+        event = (NOR == "alto"),
+        evidence = (PAV == "bueno") & (ACE == "bueno"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_pablo,
+        event = (NOR == "alto"),
+        evidence = (PAV == "malo") & (ACE == "malo"),
+        n = 10^6)
+```
+
+Casi no hay diferencia. Todos los cpquery contestan lo mismo: de cada 100 personas con
+cierta opinión sobre sus calles, cuántas dicen cumplir mucho las normas. Con la DAG que
+armamos a mano salen 73 entre quienes califican bien el pavimento y las aceras, y 70
+entre quienes califican mal las dos. Tres puntos de diferencia. Los ci.test dan 0.060
+para PAV y 0.092 para ACE; los dos pasan de 0.05, así que no se puede descartar que
+sea azar de la muestra.

@@ -2,3 +2,4 @@
 data/enmt_unam.csv
 /.quarto/
 **/*.quarto_ipynb
+*.html
