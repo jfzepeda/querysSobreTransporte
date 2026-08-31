@@ -274,3 +274,21 @@ cpquery(bn, event =(p1a_6 == "9"), evidence = (escol == "8"), n = 10^6)
 ```
 
 Analizando estas probabilidades condicionales se puede notar que apenas cambian entre niveles de escolaridad ya que estas variaciones que se pueden ver entre corridas de la misma consulta son del mismo orden de magnitud (por ejemplo 0.04846 y 0.04876) lo que sugiere que "escol" no tiene una dependencia directa o indirecta sobre el uso de autobuses foráneos o el auto particular.
+```{r}
+dag_new = empty.graph(nodes = c("Tam_loc", "ing_fam", "p1a_12"))
+
+arc_set = matrix(c("Tam_loc", "ing_fam",
+                   "Tam_loc", "p1a_12",
+                   "ing_fam", "p1a_12"),
+                 byrow = TRUE, ncol = 2,
+                 dimnames = list(NULL, c("from", "to")))
+
+arcs(dag_new) = arc_set
+dag_new
+
+graphviz.plot(dag_new, shape = "ellipse")
+```
+```{r}
+
+```
+
