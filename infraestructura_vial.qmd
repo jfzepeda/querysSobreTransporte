@@ -1,0 +1,235 @@
+---
+title: "Query: Estado de la infraestructura vial y cumplimiento de las normas de tránsito"
+author: "Pablo Ramírez"
+format:
+    html:
+        toc: true
+        html-math-method: katex
+        embed-resources: true
+        self-contained-math: true
+        df-print: kable
+editor: source
+---
+
+## Pregunta
+
+> **¿Existe una diferencia en la percepción sobre el cumplimiento de las normas de
+> tránsito entre las personas que consideran que el pavimento y las aceras de su
+> localidad se encuentran en buen estado y aquellas que consideran que no?**
+
+## Datos
+
+```{r}
+#| eval: false
+#| echo: false
+
+install.packages("bnlearn")
+```
+
+```{r}
+library(bnlearn)
+```
+
+```{r}
+data = read.csv("data/clean_enmt_vial.csv", stringsAsFactors = TRUE)
+head(data)
+```
+
+```{r}
+summary(data)
+```
+
+## Creando la DAG
+
+```{r}
+dag = empty.graph(nodes = c("LOC", "EDAD", "PAV", "ACE", "NOR"))
+```
+
+```{r}
+arc_set = matrix(c("LOC",  "PAV",
+                   "LOC",  "ACE",
+                   "EDAD", "PAV",
+                   "EDAD", "ACE",
+                   "LOC",  "NOR",
+                   "EDAD", "NOR",
+                   "PAV",  "NOR",
+                   "ACE",  "NOR"),
+                 byrow = TRUE, ncol = 2,
+                 dimnames = list(NULL, c("from", "to")))
+```
+
+```{r}
+arcs(dag) = arc_set
+dag
+```
+
+
+```{r}
+graphviz.plot(dag, shape = "ellipse")
+```
+
+## Estimando los parámetros
+
+```{r}
+bn_mle = bn.fit(dag, data = data, method = "mle")
+```
+
+```{r}
+bn_mle$NOR
+```
+
+## Significancia de las dependencias
+
+```{r}
+ci.test("NOR", "PAV", c("LOC", "EDAD", "ACE"), test = "mi", data = data)
+```
+
+```{r}
+ci.test("NOR", "ACE", c("LOC", "EDAD", "PAV"), test = "mi", data = data)
+```
+
+```{r}
+ci.test("NOR", "LOC", c("EDAD", "PAV", "ACE"), test = "mi", data = data)
+```
+
+```{r}
+ci.test("NOR", "EDAD", c("LOC", "PAV", "ACE"), test = "mi", data = data)
+```
+
+```{r}
+arc.strength(dag, data = data, criterion = "mi")
+```
+
+## Network scores
+
+```{r}
+score(dag, data = data, type = "bic")
+```
+
+```{r}
+score(dag, data = data, type = "aic")
+```
+
+## Aprendiendo la mejor estructura
+
+```{r}
+best_dag = hc(data)
+modelstring(best_dag)
+```
+
+```{r}
+score(best_dag, data = data, type = "bic")
+```
+
+```{r}
+score(best_dag, data = data, type = "aic")
+```
+
+```{r}
+graphviz.plot(best_dag, shape = "ellipse")
+```
+
+## Respondiendo la query
+
+```{r}
+bn = bn.fit(best_dag, data = data)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (NOR == "alto"),
+        evidence = (PAV == "bueno") & (ACE == "bueno"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (NOR == "alto"),
+        evidence = (PAV == "malo") & (ACE == "malo"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (NOR == "alto"),
+        evidence = (PAV == "bueno") & (ACE == "malo"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (NOR == "alto"),
+        evidence = (PAV == "malo") & (ACE == "bueno"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn,
+        event = (NOR == "alto"),
+        evidence = (PAV == "bueno") & (ACE == "bueno"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn,
+        event = (NOR == "alto"),
+        evidence = (PAV == "malo") & (ACE == "malo"),
+        n = 10^6)
+```
+
+## Revisión con otro indicador
+
+```{r}
+data2 = read.csv("data/clean_enmt_vial_alt.csv", stringsAsFactors = TRUE)
+summary(data2)
+```
+
+```{r}
+ci.test("NOR", "ACE", c("LOC", "EDAD", "PAV"), test = "mi", data = data2)
+```
+
+```{r}
+ci.test("NOR", "PAV", c("LOC", "EDAD", "ACE"), test = "mi", data = data2)
+```
+
+## Resumen
+
+PAV es cómo califica la persona las calles de su colonia y de su ciudad, ACE los
+puentes peatonales y NOR qué tanto dice cumplir las reglas de tránsito. Son 806
+personas de la ENMT.
+
+Casi no hay diferencia. Todos los cpquery contestan lo mismo: de cada 100 personas con
+cierta opinión sobre sus calles, cuántas dicen cumplir mucho las normas. Con la DAG que
+armamos a mano salen 73 entre quienes califican bien el pavimento y las aceras, y 70
+entre quienes califican mal las dos. Tres puntos de diferencia. Los ci.test dan 0.060
+para PAV y 0.092 para ACE; los dos pasan de 0.05, así que no se puede descartar que
+sea azar de la muestra.
+
+Después hc() arma la red por su cuenta, sin que le digamos qué flechas poner, y
+devuelve [LOC][EDAD][PAV][NOR][ACE|PAV]. Ahí NOR aparece solo, sin una sola flecha
+que le entre: el algoritmo concluyó que ninguna de las otras variables ayuda a predecir
+el cumplimiento. Por eso los últimos dos cpquery dan 0.6865 y 0.6864,en esa red da igual cómo califiques tus calles.
+
+Tres detalles:
+
+- **Los números no van en orden.** Las cuatro combinaciones de PAV y ACE dan 73 (bien
+  las dos), 70 (mal las dos), 59 (bien el pavimento pero mal las aceras) y 54 (al revés).
+  Si la relación fuera real, 73 debería ser el más alto, 70 el más bajo y los mixtos
+  quedar en medio. Pasa lo contrario: los mixtos son los más bajos de los cuatro. Además
+  son los dos grupos más chicos de la muestra, así que sus porcentajes se mueven mucho
+  con pocos casos. Ese desorden es lo que hace que hc() tire los arcos.
+- **La pregunta mide autoimagen.** p31 pregunta qué tanto cumple uno mismo, no qué
+  tanto cumplen los demás. En el summary se ve el efecto: 554 de las 806 personas
+  quedan en alto y solo 252 en bajo. Con casi todos amontonados del mismo lado queda
+  poco margen para que aparezcan diferencias entre grupos.
+- **El resultado depende del reactivo.** La ENMT no pregunta por banquetas, así que ACE
+  usa puentes peatonales. En la última sección se repite todo con señalamientos viales:
+  ahí el ci.test de ACE baja a 0.0097, que sí es significativo, mientras que el de
+  PAV se queda en 0.229. Parece entonces que lo que se relaciona con el cumplimiento
+  declarado es la señalización, no el estado del piso.
