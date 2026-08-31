@@ -10,83 +10,6 @@ format:
         df-print: kable
 editor: source
 references:
-  - id: pearl1988
-    type: book
-    title: "Probabilistic Reasoning in Intelligent Systems: Networks of Plausible Inference"
-    author:
-      - family: Pearl
-        given: Judea
-    publisher: Morgan Kaufmann
-    publisher-place: San Mateo, CA
-    issued: { year: 1988 }
-  - id: koller2009
-    type: book
-    title: "Probabilistic Graphical Models: Principles and Techniques"
-    author:
-      - family: Koller
-        given: Daphne
-      - family: Friedman
-        given: Nir
-    publisher: MIT Press
-    publisher-place: Cambridge, MA
-    issued: { year: 2009 }
-  - id: scutari2021
-    type: book
-    title: "Bayesian Networks: With Examples in R"
-    edition: 2
-    author:
-      - family: Scutari
-        given: Marco
-      - family: Denis
-        given: Jean-Baptiste
-    publisher: Chapman & Hall/CRC
-    publisher-place: Boca Raton, FL
-    issued: { year: 2021 }
-  - id: scutari2010
-    type: article-journal
-    title: "Learning Bayesian networks with the bnlearn R package"
-    author:
-      - family: Scutari
-        given: Marco
-    container-title: Journal of Statistical Software
-    volume: 35
-    issue: 3
-    page: 1-22
-    issued: { year: 2010 }
-  - id: schwarz1978
-    type: article-journal
-    title: "Estimating the dimension of a model"
-    author:
-      - family: Schwarz
-        given: Gideon
-    container-title: The Annals of Statistics
-    volume: 6
-    issue: 2
-    page: 461-464
-    issued: { year: 1978 }
-  - id: akaike1974
-    type: article-journal
-    title: "A new look at the statistical model identification"
-    author:
-      - family: Akaike
-        given: Hirotugu
-    container-title: IEEE Transactions on Automatic Control
-    volume: 19
-    issue: 6
-    page: 716-723
-    issued: { year: 1974 }
-  - id: fung1990
-    type: chapter
-    title: "Weighing and integrating evidence for stochastic simulation in Bayesian networks"
-    author:
-      - family: Fung
-        given: Robert
-      - family: Chang
-        given: Kuo-Chu
-    container-title: Uncertainty in Artificial Intelligence 5
-    publisher: North-Holland
-    page: 209-219
-    issued: { year: 1990 }
   - id: enmt2015
     type: dataset
     title: "Encuesta Nacional de Movilidad y Transporte (ENMT). Serie: Los mexicanos vistos por sí mismos. Los grandes temas nacionales"
@@ -95,40 +18,14 @@ references:
     publisher: Universidad Nacional Autónoma de México
     publisher-place: Ciudad de México
     issued: { year: 2015 }
-  - id: inegi2017
-    type: dataset
-    title: "Encuesta Origen-Destino en Hogares de la Zona Metropolitana del Valle de México (EOD 2017)"
+  - id: garrido
+    type: personal_communication
+    title: "Análisis de métodos de razonamiento e incertidumbre"
     author:
-      - literal: INEGI
-    publisher: Instituto Nacional de Estadística y Geografía
-    publisher-place: Aguascalientes
-    issued: { year: 2017 }
-  - id: rcore2024
-    type: book
-    title: "R: A Language and Environment for Statistical Computing"
-    author:
-      - literal: R Core Team
-    publisher: R Foundation for Statistical Computing
-    publisher-place: Viena
-    URL: "https://www.R-project.org/"
-    issued: { year: 2024 }
-  - id: quarto
-    type: software
-    title: "Quarto"
-    version: "1.5"
-    author:
-      - family: Allaire
-        given: J. J.
-      - family: Teague
-        given: Charles
-      - family: Scheidegger
-        given: Carlos
-      - family: Xie
-        given: Yihui
-      - family: Dervieux
-        given: Christophe
-    URL: "https://quarto.org"
-    issued: { year: 2024 }
+      - family: Garrido
+        given: Javier
+    publisher: Tecnológico de Monterrey
+    issued: { year: 2026 }
 ---
 
 ## Abstract
@@ -148,6 +45,9 @@ mueve el cumplimiento de normas tres puntos, ninguno significativo. La seguridad
 sentida, en cambio, mueve la calificación de comodidad más de cincuenta puntos.
 En ciudades grandes pesa más la disponibilidad de la red que su calidad
 percibida.
+
+### Link a github
+[https://github.com/jfzepeda/querysSobreTransporte](https://github.com/jfzepeda/querysSobreTransporte)
 
 ## Introducción
 
