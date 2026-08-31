@@ -1,6 +1,6 @@
 ---
 title: "Redes bayesianas multinomiales"
-format: 
+format: pwd
     html:
         toc: true
         hmtl-math-method: katex
