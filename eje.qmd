@@ -1,52 +1,318 @@
 ---
-title: "Redes bayesianas multinomiales"
+title: "Determinantes del uso del transporte público, del automóvil particular y del cumplimiento declarado de las normas de tránsito: un análisis con redes bayesianas multinomiales sobre la ENMT"
+lang: es
 format: 
     html:
         toc: true
-        hmtl-math-method: katex
+        toc-depth: 4
+        html-math-method: katex
         embed-resources: true
         df-print: kable
 editor: source
+references:
+  - id: pearl1988
+    type: book
+    title: "Probabilistic Reasoning in Intelligent Systems: Networks of Plausible Inference"
+    author:
+      - family: Pearl
+        given: Judea
+    publisher: Morgan Kaufmann
+    publisher-place: San Mateo, CA
+    issued: { year: 1988 }
+  - id: koller2009
+    type: book
+    title: "Probabilistic Graphical Models: Principles and Techniques"
+    author:
+      - family: Koller
+        given: Daphne
+      - family: Friedman
+        given: Nir
+    publisher: MIT Press
+    publisher-place: Cambridge, MA
+    issued: { year: 2009 }
+  - id: scutari2021
+    type: book
+    title: "Bayesian Networks: With Examples in R"
+    edition: 2
+    author:
+      - family: Scutari
+        given: Marco
+      - family: Denis
+        given: Jean-Baptiste
+    publisher: Chapman & Hall/CRC
+    publisher-place: Boca Raton, FL
+    issued: { year: 2021 }
+  - id: scutari2010
+    type: article-journal
+    title: "Learning Bayesian networks with the bnlearn R package"
+    author:
+      - family: Scutari
+        given: Marco
+    container-title: Journal of Statistical Software
+    volume: 35
+    issue: 3
+    page: 1-22
+    issued: { year: 2010 }
+  - id: schwarz1978
+    type: article-journal
+    title: "Estimating the dimension of a model"
+    author:
+      - family: Schwarz
+        given: Gideon
+    container-title: The Annals of Statistics
+    volume: 6
+    issue: 2
+    page: 461-464
+    issued: { year: 1978 }
+  - id: akaike1974
+    type: article-journal
+    title: "A new look at the statistical model identification"
+    author:
+      - family: Akaike
+        given: Hirotugu
+    container-title: IEEE Transactions on Automatic Control
+    volume: 19
+    issue: 6
+    page: 716-723
+    issued: { year: 1974 }
+  - id: fung1990
+    type: chapter
+    title: "Weighing and integrating evidence for stochastic simulation in Bayesian networks"
+    author:
+      - family: Fung
+        given: Robert
+      - family: Chang
+        given: Kuo-Chu
+    container-title: Uncertainty in Artificial Intelligence 5
+    publisher: North-Holland
+    page: 209-219
+    issued: { year: 1990 }
+  - id: enmt2015
+    type: dataset
+    title: "Encuesta Nacional de Movilidad y Transporte (ENMT). Serie: Los mexicanos vistos por sí mismos. Los grandes temas nacionales"
+    author:
+      - literal: Instituto de Investigaciones Jurídicas, UNAM
+    publisher: Universidad Nacional Autónoma de México
+    publisher-place: Ciudad de México
+    issued: { year: 2015 }
+  - id: inegi2017
+    type: dataset
+    title: "Encuesta Origen-Destino en Hogares de la Zona Metropolitana del Valle de México (EOD 2017)"
+    author:
+      - literal: INEGI
+    publisher: Instituto Nacional de Estadística y Geografía
+    publisher-place: Aguascalientes
+    issued: { year: 2017 }
+  - id: rcore2024
+    type: book
+    title: "R: A Language and Environment for Statistical Computing"
+    author:
+      - literal: R Core Team
+    publisher: R Foundation for Statistical Computing
+    publisher-place: Viena
+    URL: "https://www.R-project.org/"
+    issued: { year: 2024 }
+  - id: quarto
+    type: software
+    title: "Quarto"
+    version: "1.5"
+    author:
+      - family: Allaire
+        given: J. J.
+      - family: Teague
+        given: Charles
+      - family: Scheidegger
+        given: Carlos
+      - family: Xie
+        given: Yihui
+      - family: Dervieux
+        given: Christophe
+    URL: "https://quarto.org"
+    issued: { year: 2024 }
 ---
+
+## Abstract
+
+Este trabajo modela con **redes bayesianas multinomiales** tres preguntas de
+movilidad urbana sobre la Encuesta Nacional de Movilidad y Transporte (ENMT) del
+IIJ-UNAM: (i) qué tan probable es que una persona de ingresos altos en una
+localidad grande use cotidianamente el transporte público cuando lo percibe
+eficiente y seguro, (ii) si el estado percibido de la infraestructura vial se
+asocia con el cumplimiento declarado de las normas de tránsito, y (iii) cómo se
+distribuyen conjuntamente el cuartil de ingreso familiar y el uso cotidiano del
+automóvil particular según el tamaño de la localidad.
+
+La metodología consta de cinco etapas: construcción de variables categóricas a
+partir de los reactivos crudos —incluida una variable artificial `uso_tp` que
+colapsa los siete modos de transporte público en una sola escala ordinal—,
+especificación de tres DAGs por conocimiento del dominio, estimación de las
+tablas de probabilidad condicional con `bn.fit()`, validación de los arcos con
+pruebas de independencia condicional (`ci.test`) y comparación contra la
+estructura aprendida automáticamente por *hill-climbing* (`hc`), y finalmente
+inferencia probabilística con `cpquery()` por ponderación de verosimilitud.
+Todo se implementa en R con el paquete `bnlearn` sobre 1 190 casos para el
+modelo de transporte público, 806 para el de infraestructura vial y 921 para el
+de ingreso y automóvil.
+
+Los resultados principales son: (1) $P(\text{uso cotidiano} \mid \text{ingreso
+alto}, \text{localidad grande}, \text{eficiente}, \text{seguro}) \approx 0.59$,
+que sube a $0.82$ si se admite también el uso ocasional, y que cae únicamente a
+$0.55$ cuando el transporte se percibe ineficiente e inseguro —una diferencia de
+apenas cuatro puntos porcentuales—; la estimación coincide con la frecuencia
+muestral directa ($37/61 = 0.61$). (2) La diferencia en el cumplimiento
+declarado entre quienes califican bien y mal su infraestructura es de tres
+puntos ($0.72$ frente a $0.70$) y no resulta significativa ($p = 0.060$ para
+pavimento, $p = 0.092$ para puentes peatonales); al sustituir el indicador de
+puentes por el de señalamientos viales sí aparece asociación ($p = 0.0097$).
+(3) El uso cotidiano del automóvil crece de forma monótona con el cuartil de
+ingreso ($0.13$, $0.17$, $0.23$ y $0.34$) y se concentra en las localidades
+grandes ($0.24$ y $0.26$ frente a $0.14$ y $0.18$); es el único de los tres
+modelos en el que todos los arcos propuestos superan la prueba de independencia
+condicional.
+
+Se concluye que, en localidades grandes, la **disponibilidad** de la red importa
+más que su valoración subjetiva para explicar el uso cotidiano del transporte
+público, y que el cumplimiento autodeclarado de las normas es un indicador poco
+discriminante —el 69 % de la muestra se ubica en la categoría alta—, lo que
+limita cualquier inferencia causal sobre él.
 
 ## Introducción
 
-Este documento ajusta una **red bayesiana multinomial (discreta)** sobre la
-ENMT (Encuesta Nacional de Movilidad y Transporte), para responder preguntas del
-tipo "¿qué probabilidad hay de que una persona use cierto medio de transporte,
-dado su nivel de estudios / edad / ingreso?".
+### Contexto y motivación
 
-En una red discreta cada nodo es una variable categórica y su parámetro es una
-**tabla de probabilidad condicional (CPT)**: $P(X_i \mid \text{pa}(X_i))$. Todas
-las columnas deben ser `factor`.
+La movilidad urbana en México es un problema de política pública de primer
+orden: el reparto modal entre transporte público y automóvil particular
+determina emisiones, congestión, tiempo de traslado y acceso al empleo. Las
+decisiones de política —invertir en una línea de BRT, endurecer la vigilancia de
+las normas de tránsito, repavimentar— se toman con supuestos implícitos sobre
+qué mueve la conducta de las personas: se asume, por ejemplo, que mejorar la
+percepción de calidad del servicio incrementará su uso, o que una vía en buen
+estado induce mayor respeto a las reglas.
 
-El flujo es:
+Estos supuestos son afirmaciones *condicionales* —"si mejora X, entonces cambia
+Y dado Z"— y por lo tanto son verificables con datos de encuesta. El problema es
+que las variables involucradas son categóricas, están fuertemente
+interrelacionadas y ninguna de ellas es manipulable experimentalmente: no se
+puede asignar aleatoriamente a una persona un ingreso alto o una ciudad grande.
+Se requiere entonces un formalismo que represente explícitamente la estructura de
+dependencias entre variables y que permita calcular probabilidades condicionales
+sobre combinaciones arbitrarias de evidencia.
 
-1. Cargar los datos ya limpiados por `clean.py` (33 columnas seleccionadas).
-2. Definir un dag_jf a mano con conocimiento del dominio.
-3. Ajustar las CPTs con `bn.fit()`.
-4. Contrastar la estructura propuesta (pruebas de independencia, scores) contra
-   una estructura aprendida automáticamente con `hc()`.
-5. Responder preguntas con `cpquery()` (inferencia aproximada por muestreo).
+### Antecedentes
 
-::: {.callout-warning}
-## Estado del documento
+Las **redes bayesianas** [@pearl1988; @koller2009] son modelos gráficos
+probabilísticos que factorizan una distribución conjunta según un grafo dirigido
+acíclico (DAG). Su atractivo para este problema es doble: la estructura del grafo
+codifica hipótesis sustantivas sobre el dominio y es interpretable y discutible
+por un no estadístico; y una vez ajustada, la red responde consultas
+condicionales arbitrarias sin necesidad de reestimar un modelo por pregunta,
+a diferencia de una regresión logística que solo contesta la pregunta para la
+que fue especificada.
 
-Este archivo parte de la **plantilla del dataset `survey`** del libro de
-Scutari, cuyos nodos son `A` (age), `S` (sex), `E` (education), `O` (occupation),
-`R` (residence) y `T` (travel). La adaptación a la ENMT está **a medias**:
+En su variante **multinomial** (o discreta) cada nodo es una variable categórica
+cuyo parámetro es una tabla de probabilidad condicional (CPT). La referencia
+metodológica de este trabajo es @scutari2021, y la implementación es el paquete
+`bnlearn` [@scutari2010], que reúne en una misma interfaz el ajuste de
+parámetros, el aprendizaje de estructura y la inferencia aproximada.
 
-- Los nombres de la ENMT ya se usan en `arc_set` (`edad_1`, `escol`, …).
-- Pero `empty.graph()` sigue declarando los nodos `A`, `S`, `E`, `O`, `R`, `T`,
-  y todo lo que viene después de `bn.fit()` sigue referenciando esos nombres.
+En el ámbito nacional, el análisis de encuestas de movilidad —como la Encuesta
+Origen-Destino de la ZMVM [@inegi2017]— se ha apoyado tradicionalmente en
+tabulados cruzados y modelos de elección discreta. El uso de redes bayesianas
+aporta sobre esos enfoques la posibilidad de distinguir dependencias *directas*
+de dependencias *mediadas*: si el tamaño de la localidad influye en el uso del
+transporte público únicamente a través del ingreso y de la percepción del
+servicio, la red lo hace explícito como ausencia de arco directo, y esa ausencia
+es una afirmación falsable mediante una prueba de independencia condicional.
 
-Los bloques afectados están marcados abajo con **[plantilla]**. Tal como está,
-`arcs(dag_jf) = arc_set` falla porque los nodos de `arc_set` no existen en `dag_jf`.
-:::
+### Problema e hipótesis
 
-## Paquetes
+El trabajo aborda tres preguntas concretas:
 
-Instalación manual; el chunk no corre al renderizar.
+> **Q1.** ¿Cuál es la probabilidad de que personas con altos ingresos en
+> localidades grandes se muevan en transporte público si lo consideran eficiente
+> y seguro?
+
+> **Q2.** ¿Existe una diferencia en la percepción sobre el cumplimiento de las
+> normas de tránsito entre las personas que consideran que el pavimento y las
+> aceras de su localidad se encuentran en buen estado y aquellas que consideran
+> que no?
+
+> **Q3.** ¿Cuál es la probabilidad de cada tipo de ingreso familiar y uso
+> cotidiano del automóvil dado el tamaño de la localidad, discretizando el
+> ingreso familiar en cuartiles?
+
+Las hipótesis de trabajo asociadas son:
+
+- **H1.** El uso del transporte público depende del ingreso familiar y de la
+  percepción de eficiencia y seguridad, mientras que los atributos
+  sociodemográficos (edad, sexo, escolaridad, estrato, tamaño de localidad)
+  influyen solo de forma **indirecta**, mediados por el ingreso y la percepción.
+- **H2.** El cumplimiento declarado de las normas de tránsito depende del estado
+  percibido de la infraestructura vial, controlando por edad y tamaño de
+  localidad.
+- **H3.** El uso cotidiano del automóvil particular depende del ingreso familiar
+  por encima de lo que explique el tamaño de la localidad; es decir, ingreso y
+  automóvil **no** son condicionalmente independientes dado `Tam_loc`.
+
+Ambas hipótesis se someten a prueba dos veces: como restricciones estructurales
+sujetas a `ci.test`, y como estructuras completas comparadas contra la DAG que
+un algoritmo de búsqueda encuentra sin supervisión.
+
+### Importancia
+
+El valor del ejercicio no está solo en los números que arroja, sino en el
+contraste entre el modelo que un analista propone desde el dominio y el que los
+datos sostienen por sí solos. Como se verá, en ambos casos el algoritmo de
+aprendizaje de estructura elimina precisamente los arcos que motivaron el
+estudio, y entender **por qué** —penalización por complejidad frente a variables
+de alta cardinalidad, sesgo de deseabilidad social en los reactivos
+autodeclarados— es tan informativo como la probabilidad estimada.
+
+## Metodología
+
+### Marco formal
+
+Una red bayesiana sobre las variables $\mathbf{X} = \{X_1, \dots, X_p\}$ es un
+par $(\mathcal{G}, \Theta)$ donde $\mathcal{G}$ es un DAG cuyos vértices son las
+variables y $\Theta$ el conjunto de parámetros. El grafo induce la factorización
+
+$$
+P(X_1, \dots, X_p) \;=\; \prod_{i=1}^{p} P\!\left(X_i \mid \mathrm{pa}(X_i)\right),
+$$
+
+donde $\mathrm{pa}(X_i)$ son los padres de $X_i$ en $\mathcal{G}$. En el caso
+multinomial cada factor $P(X_i \mid \mathrm{pa}(X_i))$ es una tabla de
+probabilidad condicional (CPT) con
+$(|X_i| - 1)\prod_{j \in \mathrm{pa}(i)} |X_j|$ parámetros libres. De ahí una
+restricción práctica que gobierna todo el diseño: **el tamaño de una CPT crece
+multiplicativamente con el número y la cardinalidad de los padres**, de modo que
+un nodo con tres padres de 8, 2 y 2 niveles ya requiere 96 parámetros, y con
+1 190 observaciones muchas celdas quedan vacías. Toda decisión de modelado
+—colapsar los siete modos de transporte en una variable, no agregar un arco
+directo de más— responde a este límite.
+
+La ausencia de un arco $X \to Y$ es una afirmación de independencia condicional,
+$X \perp\!\!\!\perp Y \mid \mathrm{pa}(Y)$, y es contrastable: es exactamente la
+hipótesis nula de `ci.test()`.
+
+### Materiales
+
+**Fuente de datos.** Encuesta Nacional de Movilidad y Transporte (ENMT) del
+Instituto de Investigaciones Jurídicas de la UNAM [@enmt2015], archivo
+`enmt_unam.csv`: 1 191 registros y 698 variables, codificado en `latin-1`.
+
+**Preprocesamiento.** El script `clean.py` (pandas) selecciona 33 columnas y
+produce `clean_enmt_unam.csv`: las 22 variables de frecuencia de uso por medio de
+transporte (`p1a_1` … `p1a_22`), dos de percepción del transporte público
+(`p17_1`, `p17_4`), los sociodemográficos y el factor de expansión. Para el
+modelo vial se emplea `clean_enmt_vial.csv` (806 casos completos en los
+reactivos de infraestructura) y su variante `clean_enmt_vial_alt.csv` (860
+casos), que sustituye el indicador de puentes peatonales por el de señalamientos.
+
+**Herramientas.** R [@rcore2024] con el paquete `bnlearn` 5.1 [@scutari2010]
+para el ajuste, las pruebas y la inferencia; `Rgraphviz` para la visualización de
+los grafos; y Quarto [@quarto] para el documento reproducible que se está
+leyendo, en el que todos los resultados reportados se recalculan al renderizar.
 
 ```{r}
 #| eval: false
@@ -59,21 +325,56 @@ install.packages("bnlearn")
 library(bnlearn)
 ```
 
-## Construcción de las variables
+### Procedimiento
 
-### Datos — transporte público
+El análisis sigue seis etapas, aplicadas de forma paralela a los tres modelos:
 
-`clean_enmt_unam.csv` lo produce `clean.py`: toma `enmt_unam.csv`
-(698 columnas, codificado en `latin-1`) y se queda con 33 variables — las 22 de
-frecuencia de uso por medio de transporte (`p1a_1` … `p1a_22`), dos de
-percepción del transporte público y los sociodemográficos.
+1. **Construcción de variables.** Recodificar los reactivos crudos a factores,
+   tratar los códigos de no respuesta como `NA` y, cuando la pregunta de
+   investigación no corresponde a una sola columna, construir una variable
+   agregada.
+2. **Especificación de la estructura.** Declarar los nodos con `empty.graph()` y
+   asignar los arcos con `arcs()<-` a partir de una matriz `from → to` derivada
+   del conocimiento del dominio. La asignación valida la aciclicidad.
+3. **Estimación de parámetros.** `bn.fit()` con `method = "mle"` (frecuencias
+   relativas observadas) para la lectura descriptiva de las CPTs y con
+   `method = "bayes"` (suavizado por un prior de Dirichlet) cuando la consulta
+   posterior involucra combinaciones de evidencia poco frecuentes, donde el
+   estimador de máxima verosimilitud produce celdas `0` o `NaN`.
+4. **Contraste de las relaciones de dependencia.** `ci.test()` sobre cada arco de
+   interés, con $H_0$: los dos primeros argumentos son independientes dado el
+   condicionante. Se usan tres estadísticos como verificación cruzada:
+   información mutua (`mi`, razón de verosimilitudes), ji-cuadrada de Pearson
+   (`x2`) —asintóticamente equivalentes— y su versión por permutaciones
+   (`mc-x2`), que no depende de la aproximación asintótica y por tanto es la
+   referencia cuando las tablas son ralas. Complementariamente, `arc.strength()`
+   cuantifica la contribución de cada arco.
+5. **Comparación de estructuras.** Se calculan los scores BIC [@schwarz1978] y
+   AIC [@akaike1974] de la DAG propuesta y se contrastan contra la estructura
+   aprendida por *hill-climbing* (`hc()`), una búsqueda voraz que parte del grafo
+   vacío y agrega, quita o invierte arcos mientras el score mejore. La
+   comparación es informativa en ambos sentidos: si la red aprendida gana por
+   mucho, la estructura propuesta está sobreparametrizada; si la red aprendida
+   resulta sustantivamente vacía, el criterio de penalización está dominando
+   sobre la señal.
+6. **Inferencia y validación.** `cpquery()` responde las preguntas por muestreo.
+   Cuando la evidencia es rara, el muestreo por rechazo descarta casi todas las
+   simulaciones, de modo que se emplea `method = "lw"` (*likelihood weighting*,
+   @fung1990), que fija la evidencia y pondera cada muestra por su
+   verosimilitud. Finalmente, cada probabilidad estimada por la red se contrasta
+   contra la frecuencia relativa observada en el subconjunto de la muestra que
+   cumple la evidencia, para verificar que el resultado no sea un artefacto de la
+   estructura impuesta.
 
-Ojo con `stringsAsFactors = TRUE`: aquí **no hace nada**, porque el CSV no tiene
-ni una columna de texto — todo son códigos numéricos (`sexo` = 1/2, `escol` = 2,
-…). Sin la conversión explícita del siguiente chunk, todas las columnas entran
-como `integer` y `bn.fit()` falla, porque una red multinomial exige `factor`.
+### Construcción de las variables — transporte público
 
-Variables usadas en el dag_jf:
+`clean_enmt_unam.csv` se lee con `stringsAsFactors = TRUE`, opción que aquí **no
+hace nada**: el CSV no contiene ni una columna de texto, todo son códigos
+numéricos (`sexo` = 1/2, `escol` = 2, …). Sin la conversión explícita a `factor`
+que se hace más adelante, todas las columnas entrarían como `integer` y
+`bn.fit()` fallaría, porque una red multinomial exige factores.
+
+Las variables que intervienen en el primer modelo son:
 
 | Código    | Significado                          |
 |-----------|--------------------------------------|
@@ -93,32 +394,33 @@ data = read.csv("data/clean_enmt_unam.csv", stringsAsFactors = TRUE)
 head(data)
 ```
 
-### Variable artificial `uso_tp`
+#### La variable artificial `uso_tp`
 
-La pregunta que queremos responder — *¿qué tan probable es que alguien se mueva
-en transporte público?* — no tiene una sola columna que la conteste. La ENMT
-registra la frecuencia de uso **modo por modo**: `p1a_1` … `p1a_7` son los siete
-medios públicos (tren, metro, tranvía, camión/microbús, taxi, combi, …), cada
-uno codificado `1` = Cotidianamente, `2` = Ocasionalmente, `3` = Nunca, más
-`8` = NS y `9` = NC.
+La pregunta Q1 —*¿qué tan probable es que alguien se mueva en transporte
+público?*— no tiene una sola columna que la conteste. La ENMT registra la
+frecuencia de uso **modo por modo**: `p1a_1` … `p1a_7` son los siete medios
+públicos (tren, tren urbano, transporte eléctrico, camión/microbús, colectivo,
+autobús foráneo y BRT), cada uno codificado `1` = Cotidianamente,
+`2` = Ocasionalmente, `3` = Nunca, más `8` = NS y `9` = NC.
 
-Meter los siete como nodos separados no sirve: multiplicaría el dag_jf y dejaría la
-respuesta repartida en siete CPTs. Se colapsan en una sola variable ordinal.
+Incluir los siete como nodos separados no sirve: multiplicaría el grafo y dejaría
+la respuesta repartida en siete CPTs, ninguna de las cuales contesta la pregunta
+por sí sola. Se colapsan por tanto en una sola variable ordinal.
 
-El truco está en que la codificación original ya es un orden: `1 < 2 < 3` es
-"más frecuente < menos frecuente". Así que **el mínimo por renglón es el modo
-público que la persona más usa**, y con eso el valor agregado se lee igual que
-los originales:
+El procedimiento aprovecha que la codificación original ya es un orden:
+$1 < 2 < 3$ es "más frecuente < menos frecuente". Por lo tanto **el mínimo por
+renglón es el modo público que la persona más usa**, y el valor agregado se lee
+en la misma escala que los originales:
 
 - `Cotidiano` — usa al menos un medio público cotidianamente (algún `p1a_i == 1`).
 - `Ocasional` — ninguno cotidiano, pero al menos uno ocasional.
 - `Nunca` — contestó "Nunca" a los siete.
 
-Los `8`/`9` se vuelven `NA` **antes** del mínimo, no después: son no-respuestas
-sobre *un* modo, y no deben invalidar a la persona si contestó los otros seis.
-Solo si los siete son NS/NC queda `NA` — pasa en 1 de 1191 renglones. (Ese
-`min()` sobre puros `NA` devuelve `Inf` con warning; de ahí las dos líneas de
-limpieza.)
+Los códigos `8`/`9` se convierten a `NA` **antes** del mínimo, no después: son no
+respuestas sobre *un* modo y no deben invalidar a la persona si contestó los
+otros seis. Solo si los siete son NS/NC el resultado queda `NA`, lo que ocurre en
+1 de 1 191 renglones. (El `min()` sobre puros `NA` devuelve `Inf` con
+advertencia; de ahí las dos líneas de limpieza.)
 
 ```{r}
 frec = as.matrix(data[, paste0("p1a_", 1:7)])
@@ -133,18 +435,20 @@ data$uso_tp = factor(mejor, levels = 1:3,
 table(data$uso_tp, useNA = "ifany")
 ```
 
-Queda razonablemente balanceada (651 / 396 / 143), que es justo lo que se
-necesita para que las CPTs condicionadas no salgan huecas.
+La distribución resultante (651 / 396 / 143) está razonablemente balanceada, que
+es justamente la condición para que las CPTs condicionadas no salgan huecas.
 
-Se recorta a los 10 nodos del dag_jf y se convierten a `factor`. Las dos cosas son
-necesarias: `bn.fit()` valida el data frame **completo**, así que aunque el dag_jf
-no incluya `p1a_1` ni `Pondi2`, basta con que sigan en `data` para que truene.
-(`Pondi2` además es el factor de expansión muestral: un número de verdad, no una
-categoría.) Nótese que los `p1a_1` … `p1a_7` **no** entran: ya están resumidos
-dentro de `uso_tp`.
+#### Recorte al conjunto de nodos
 
-También se tira el único renglón con `uso_tp = NA`: `bn.fit()` no acepta
-faltantes, y 1 de 1191 no cambia nada.
+Se recorta el data frame a los 10 nodos del modelo y se convierten todas las
+columnas a `factor`. Ambas cosas son necesarias: `bn.fit()` valida el data frame
+**completo**, así que basta con que `p1a_1` o `Pondi2` sigan presentes para que
+falle, aunque el grafo no los incluya. (`Pondi2` es además el factor de expansión
+muestral: un número real, no una categoría.) Nótese que `p1a_1` … `p1a_7` **no**
+entran, pues ya están resumidos dentro de `uso_tp`.
+
+También se descarta el único renglón con `uso_tp = NA`: `bn.fit()` no admite
+faltantes y 1 de 1 191 no altera ningún resultado.
 
 ```{r}
 nodos = c("edad_1", "estrato", "escol", "sexo", "h21_1",
@@ -156,11 +460,14 @@ data[] = lapply(data, factor)
 str(data)
 ```
 
-### Datos — infraestructura vial
+### Construcción de las variables — infraestructura vial
 
-PAV es cómo califica la persona las calles de su colonia y de su ciudad, ACE los
-puentes peatonales y NOR qué tanto dice cumplir las reglas de tránsito. Son 806
-personas de la ENMT.
+El segundo modelo trabaja sobre cinco variables ya dicotomizadas: `PAV` es cómo
+califica la persona las calles de su colonia y de su ciudad (reactivos `p18_1` y
+`p18_2`, bueno si el promedio es 6 o más), `ACE` los puentes peatonales
+(`p18_8`), `NOR` qué tanto declara cumplir las reglas de tránsito (`p31`, alto si
+responde 8 o más), y `LOC` y `EDAD` como controles. Son 806 personas de la ENMT
+con respuesta completa en los cinco reactivos.
 
 ```{r}
 data_pablo = read.csv("data/clean_enmt_vial.csv", stringsAsFactors = TRUE)
@@ -171,25 +478,95 @@ head(data_pablo)
 summary(data_pablo)
 ```
 
-## DAGs propuestas
+Conviene fijarse desde ahora en el desbalance de `NOR`: 554 de 806 personas
+(69 %) se ubican en la categoría alta. Es el primer indicio de que el reactivo
+mide autoimagen más que conducta, y condiciona todo lo que sigue en el segundo
+modelo.
 
-### DAG 1 — uso del transporte público
+### Construcción de las variables — ingreso y automóvil
 
-Se construye el dag_jf en dos pasos: primero un grafo vacío con los nodos, después
-se le asignan los arcos. Es la alternativa a `model2network()` cuando hay muchos
-arcos y conviene listarlos como tabla.
+El tercer modelo vuelve al archivo completo, porque necesita `p1a_12` (frecuencia
+de uso del automóvil particular), que quedó fuera del recorte del modelo 1. Se
+lee en un objeto aparte para no sobrescribir el data frame ya recodificado.
 
-Los 10 nodos son exactamente los que aparecen en `arc_set`: si `empty.graph()`
-declarara alguno de más o de menos, `arcs(dag_jf) = arc_set` fallaría.
+```{r}
+data_emi = read.csv("data/clean_enmt_unam.csv", stringsAsFactors = TRUE)
+data_emi = data_emi[, c("Tam_loc", "ing_fam", "p1a_12")]
+```
+
+Dos limpiezas antes de discretizar. La primera es `ing_fam`: el libro de códigos
+declara como válidos los niveles `2` (menos de 1 SM) a `8` (más de 5 SM) y
+reserva el `1` para NS/NC, pero en el archivo el `1` no aparece y en su lugar hay
+264 casos con valor `0`, que ninguna entrada del diccionario define. Se tratan
+como no respuesta: incluirlos como una categoría más contaminaría los cuartiles
+con el 22 % de la muestra sin ingreso declarado. La segunda es `p1a_12`, donde
+`8` = NS y `9` = NC se convierten en `NA` con el mismo criterio que en `uso_tp`.
+
+```{r}
+data_emi$ing_fam[data_emi$ing_fam == 0] = NA        # 0 = sin ingreso declarado
+data_emi$p1a_12[data_emi$p1a_12 >= 8]  = NA         # 8 = NS, 9 = NC
+data_emi = na.omit(data_emi)
+nrow(data_emi)
+```
+
+#### Discretización de `ing_fam` en cuartiles
+
+`ing_fam` es ordinal con siete niveles válidos, así que **no admite un corte
+exacto en cuartiles**: todos los casos de un mismo nivel comparten rango y tienen
+que caer en el mismo grupo. La regla que se aplica es la convención estándar para
+empates —cada nivel se asigna al cuartil donde cae la mayoría de sus rangos—, lo
+que equivale a partir por la frecuencia acumulada en los puntos más cercanos a
+25 %, 50 % y 75 %:
+
+| Nivel `ing_fam` | Rango de ingreso | Acumulado | Cuartil |
+|---|---|---|---|
+| 2, 3 | hasta 2 SM | 17.8 % | `Q1` |
+| 4, 5 | más de 2 hasta 4 SM | 54.8 % | `Q2` |
+| 6, 7 | más de 4 hasta 6 SM | 74.8 % | `Q3` |
+| 8 | más de 5 SM | 100 % | `Q4` |
+
+```{r}
+cortes = c("2" = "Q1", "3" = "Q1", "4" = "Q2", "5" = "Q2",
+           "6" = "Q3", "7" = "Q3", "8" = "Q4")
+
+data_emi$ing_q = factor(cortes[as.character(data_emi$ing_fam)],
+                        levels = paste0("Q", 1:4))
+data_emi$auto  = factor(data_emi$p1a_12, levels = 1:3,
+                        labels = c("Cotidiano", "Ocasional", "Nunca"))
+data_emi$Tam_loc = factor(data_emi$Tam_loc, levels = 1:4,
+                          labels = c("100k+", "15k-99999",
+                                     "2500-14999", "1-2499"))
+
+data_emi = data_emi[, c("Tam_loc", "ing_q", "auto")]
+table(data_emi$ing_q)
+prop.table(table(data_emi$ing_q))
+```
+
+Los grupos quedan en 17.8 % / 37.0 % / 20.0 % / 25.2 %. `Q2` sale abultado porque
+concentra los dos niveles modales de la distribución (`4` y `5`, con 184 y 159
+casos); es el precio inevitable de discretizar una variable ordinal gruesa, y
+conviene tenerlo presente al leer las probabilidades conjuntas, que están
+ponderadas por el tamaño de cada cuartil.
+
+## Aplicación
+
+### Modelo 1 — Uso del transporte público
+
+#### Especificación de la DAG
+
+La estructura se construye en dos pasos: primero un grafo vacío con los nodos,
+después la asignación de los arcos. Es la alternativa a `model2network()` cuando
+hay muchos arcos y conviene listarlos como tabla. Los 10 nodos deben ser
+exactamente los que aparecen en `arc_set`: si `empty.graph()` declarara alguno de
+más o de menos, `arcs(dag_jf) <- arc_set` fallaría.
 
 ```{r}
 dag_jf = empty.graph(nodes = c("edad_1", "estrato", "escol", "sexo", "h21_1",
                             "Tam_loc", "ing_fam", "p17_1", "p17_4", "uso_tp"))
 ```
 
-Cada renglón de la matriz es un arco `from → to`. Con `byrow = TRUE` la matriz se
-llena por renglones, así que se lee como una lista de pares. La estructura
-propuesta es:
+Cada renglón de la matriz es un arco `from → to`; con `byrow = TRUE` se lee como
+una lista de pares. La estructura propuesta, que operacionaliza **H1**, es:
 
 - `edad_1 → escol`, `estrato → escol` — la escolaridad depende de la edad y del
   estrato socioeconómico.
@@ -200,16 +577,17 @@ propuesta es:
 - `Tam_loc → p17_1`, `Tam_loc → p17_4` — la percepción de eficiencia y seguridad
   del transporte público depende del tamaño de la localidad.
 - `ing_fam → uso_tp`, `p17_1 → uso_tp`, `p17_4 → uso_tp` — el uso del transporte
-  público depende del ingreso (quien puede pagar auto tiene con qué sustituirlo)
-  y de qué tan bien se le percibe.
+  público depende del ingreso (quien puede pagar un auto tiene con qué
+  sustituirlo) y de qué tan bien se percibe el servicio.
 
 Es decir, los sociodemográficos influyen en el uso del transporte público solo de
 forma **indirecta**, vía ingreso y percepción. En particular `Tam_loc` llega a
 `uso_tp` únicamente por los tres caminos `Tam_loc → ing_fam → uso_tp`,
 `Tam_loc → p17_1 → uso_tp` y `Tam_loc → p17_4 → uso_tp`: se decidió **no** poner
-un arco directo `Tam_loc → uso_tp` para mantener la CPT en 3 padres
-(3 × 8·2·2 = 96 parámetros en vez de 384, que con 1190 filas ya deja celdas
-huecas).
+un arco directo `Tam_loc → uso_tp` para mantener la CPT en tres padres
+($3 \times 8 \cdot 2 \cdot 2 = 96$ parámetros en vez de 384, que con 1 190 filas
+ya deja celdas huecas). Esta decisión es una hipótesis de mediación, y se
+contrasta explícitamente más adelante.
 
 ```{r}
 arc_set = matrix(c("edad_1", "escol",
@@ -228,22 +606,234 @@ arc_set = matrix(c("edad_1", "escol",
                  dimnames = list(NULL, c("from", "to")))
 ```
 
-`arcs(dag_jf) =` inyecta los arcos y valida que el resultado siga siendo acíclico.
-Imprimir `dag_jf` muestra el modelo, los arcos y el tamaño del espacio de
-parámetros.
+`arcs(dag_jf) <-` inyecta los arcos y valida que el resultado siga siendo
+acíclico. Al imprimir el objeto se obtienen el modelo, los arcos y el tamaño del
+espacio de parámetros.
 
 ```{r}
 arcs(dag_jf) = arc_set
 dag_jf
 ```
 
-Visualizacion de grafico de nodos con `graphviz`
-
 ```{r}
 graphviz.plot(dag_jf, shape = "ellipse")
 ```
 
-### DAG 2 — infraestructura vial y normas de tránsito
+#### Ajuste de los parámetros
+
+Con la estructura fija, `bn.fit()` estima las CPTs. `method = "mle"` usa máxima
+verosimilitud, es decir, frecuencias relativas observadas.
+
+```{r}
+bn_mle = bn.fit(dag_jf, data = data, method = "mle")
+bn_mle
+```
+
+La inspección de nodos individuales permite leer las tablas una por una. `escol`
+tiene dos padres (`edad_1`, `estrato`) y `h21_1` otros dos (`escol`, `sexo`):
+
+```{r}
+bn_mle$escol
+bn_mle$h21_1
+```
+
+Aquí se aprecia el problema anticipado en la metodología: con `estrato` de 16
+niveles y `h21_1` de 18, varias combinaciones de padres tienen muy pocas
+observaciones y las columnas correspondientes contienen ceros estructurales. Es
+la razón por la que la inferencia posterior se hará con `method = "bayes"`.
+
+#### Significancia de las relaciones de dependencia
+
+La prueba central para **H1** es si la ocupación conserva asociación con el uso
+del transporte público una vez controlada la percepción del servicio. Bajo la
+estructura propuesta, `h21_1` influye en `uso_tp` solo a través de `ing_fam`, de
+modo que se espera dependencia marginal —que es lo que la prueba detecta— pero no
+un arco directo.
+
+```{r}
+set.seed(1)
+ci.test('uso_tp', 'h21_1', c('p17_1','p17_4'), test = 'mi', data = data)
+```
+
+```{r}
+ci.test('uso_tp', 'h21_1', c('p17_1','p17_4'), test = 'x2', data = data)
+```
+
+```{r}
+ci.test('uso_tp', 'h21_1', c('p17_1','p17_4'), test = 'mc-x2', data = data)
+```
+
+Condicionando en una sola variable a la vez, para descartar que el resultado
+dependa del número de grados de libertad que introduce el condicionante:
+
+```{r}
+ci.test('uso_tp', 'h21_1', 'p17_1', test = 'x2', data = data)
+```
+
+```{r}
+ci.test('uso_tp', 'h21_1', 'p17_4', test = 'x2', data = data)
+```
+
+> Hay evidencia fuerte ($x^2 = 194.9$, $\mathrm{df} = 136$, $p \approx 0.0007$;
+> $mi = 219.4$, $p \approx 7.7\times10^{-6}$) de que el uso del transporte
+> público se relaciona con la ocupación, aun controlando por la eficiencia y la
+> seguridad percibidas —y por separado con cada una ($p \approx 1.3\times10^{-5}$
+> y $p \approx 1.7\times10^{-4}$). La asociación es consistente con el modelo
+> propuesto, en el que la ocupación influye sobre el uso del transporte público a
+> través del ingreso familiar.
+
+Vale la pena registrar un resultado metodológico intermedio. En una versión
+previa del análisis la variable respuesta era `p1a_12` (uso del automóvil
+particular) en lugar de `uso_tp`, y esta misma prueba salía apenas al borde
+($p \approx 0.04$ por permutación). Al agregar los siete modos públicos en
+`uso_tp` la señal se vuelve mucho más limpia: colapsar reduce los grados de
+libertad y concentra la frecuencia en tres celdas en lugar de repartirla entre
+las categorías de un solo modo. Es un ejemplo de que la construcción de la
+variable agregada no es una comodidad de notación, sino una condición para que la
+prueba tenga potencia.
+
+#### Comparación de estructuras
+
+Scores de la DAG propuesta:
+
+```{r}
+score(dag_jf, data = data, type = 'bic')
+score(dag_jf, data = data, type = 'aic')
+```
+
+Estructura aprendida sin supervisión por *hill-climbing*:
+
+```{r}
+best_dag = hc(data)
+best_dag
+```
+
+```{r}
+score(best_dag, data = data, type = 'bic')
+score(best_dag, data = data, type = 'aic')
+```
+
+```{r}
+graphviz.plot(best_dag, shape = "ellipse")
+```
+
+El resultado es contundente y a la vez engañoso. La red aprendida obtiene un BIC
+de $-15\,963$ frente a $-20\,609$ de la propuesta, y un AIC de $-15\,617$ frente
+a $-17\,347$: gana por ambos criterios y por un margen muy amplio. Pero al mirar
+la estructura se ve que conserva apenas **5 arcos de los 11 propuestos**
+—`escol|edad_1`, `Tam_loc|estrato`, `sexo|escol`, `p17_1|Tam_loc`,
+`p17_4|p17_1`— y que **`uso_tp` queda aislada, sin un solo padre**, junto con
+`h21_1` e `ing_fam`.
+
+La explicación está en la penalización. El BIC penaliza con
+$\frac{\log n}{2}$ por parámetro, y aquí el coeficiente de penalización reportado
+es $3.54$ con $n = 1190$. Los nodos que motivan el estudio son justamente los de
+mayor cardinalidad: agregar `ing_fam` (8 niveles) como padre de `uso_tp` cuesta
+$2 \times 8 = 16$ parámetros adicionales, y agregar los tres padres propuestos
+cuesta 96. La ganancia en verosimilitud existe —las pruebas de independencia
+condicional la detectan— pero no alcanza a pagar ese costo. Dicho de otro modo:
+el criterio de score responde a la pregunta "¿cuántos arcos justifica el tamaño
+de muestra?", no a la pregunta "¿existe esta dependencia?". Son preguntas
+distintas y aquí dan respuestas distintas.
+
+La consecuencia práctica es que la inferencia de la sección siguiente se hace
+sobre la DAG propuesta, no sobre la aprendida: sobre la aprendida, `uso_tp` es
+marginalmente independiente de toda la evidencia y cualquier `cpquery` devolvería
+la proporción incondicional, sin contenido informativo.
+
+#### Respuesta a Q1
+
+> **¿Cuál es la probabilidad de que personas con altos ingresos en localidades
+> grandes se muevan en transporte público si es eficiente y seguro?**
+
+Traducida a evidencia sobre la red:
+
+| Condición | Variable | Valor |
+|---|---|---|
+| altos ingresos | `ing_fam` | `7` (5–6 SM) u `8` (más de 5 SM) |
+| localidad grande | `Tam_loc` | `1` (100 000+ habitantes) |
+| es eficiente | `p17_1` | `1` (Eficiente) |
+| es seguro | `p17_4` | `1` (Seguro) |
+
+El ajuste se hace ahora con `method = "bayes"` y no con `"mle"`: la evidencia es
+una combinación específica de cuatro condiciones y con MLE varias celdas de la
+CPT salen `0` o `NaN` por falta de observaciones, lo que sesga el muestreo.
+
+Se usa `method = "lw"` en vez del muestreo por rechazo por la misma razón: la
+evidencia es rara —61 de 1 190 filas la cumplen—, de modo que rechazar
+descartaría alrededor del 95 % de las simulaciones. `lw` fija la evidencia y
+pondera. Exige pasarla como `list()`, lo que además permite
+`ing_fam = c("7", "8")` para aceptar cualquiera de los dos niveles altos.
+
+```{r}
+bn = bn.fit(dag_jf, data = data, method = "bayes")
+
+evidencia = list(ing_fam = c("7", "8"), Tam_loc = "1", p17_1 = "1", p17_4 = "1")
+
+set.seed(42)
+cpquery(bn, event = (uso_tp == "Cotidiano"), evidence = evidencia,
+        method = "lw", n = 10^6)
+```
+
+Es decir, **≈ 59 %** usa transporte público *cotidianamente* bajo esas
+condiciones. Como `uso_tp` tiene tres niveles, la misma variable contesta también
+la lectura laxa de "se mueve en transporte público" (cotidiana **u**
+ocasionalmente):
+
+```{r}
+set.seed(42)
+cpquery(bn, event = (uso_tp != "Nunca"), evidence = evidencia,
+        method = "lw", n = 10^6)
+```
+
+**≈ 82 %.** Falta el contraste que le da sentido a la cláusula "si es eficiente y
+seguro": la misma gente, en el mismo tamaño de localidad, pero con el transporte
+percibido como ineficiente e inseguro.
+
+```{r}
+set.seed(42)
+cpquery(bn, event = (uso_tp == "Cotidiano"),
+        evidence = list(ing_fam = c("7", "8"), Tam_loc = "1",
+                        p17_1 = "2", p17_4 = "2"),
+        method = "lw", n = 10^6)
+```
+
+**≈ 55 %.** La diferencia es de apenas ~4 puntos porcentuales: para este grupo,
+la percepción de calidad del transporte público **mueve poco la aguja**. Es un
+resultado contraintuitivo pero coherente con la estructura del modelo —en
+localidades grandes el uso cotidiano está sostenido por la disponibilidad de la
+red y por la ausencia de alternativas de tiempo comparable, no por lo bien que se
+califique el servicio.
+
+##### Validación contra la muestra
+
+Toda la cadena anterior —estructura impuesta, suavizado bayesiano, muestreo
+ponderado— podría estar generando el número. La verificación directa consiste en
+mirar el subconjunto de personas que efectivamente cumplen la evidencia:
+
+```{r}
+sub = subset(data, ing_fam %in% c("7", "8") & Tam_loc == "1" &
+                   p17_1 == "1" & p17_4 == "1")
+nrow(sub)
+table(sub$uso_tp)
+prop.table(table(sub$uso_tp))
+```
+
+37 de 61 = **60.7 %** de uso cotidiano en la muestra directa, contra **59 %** que
+estima la red. La diferencia (1.7 puntos) es menor que el error de muestreo que
+cabría esperar con $n = 61$, de modo que el resultado no depende de la estructura
+impuesta. La red aporta sobre el conteo directo la capacidad de responder
+contrafactuales —como el escenario ineficiente/inseguro— para los que el
+subconjunto correspondiente sería aún más pequeño.
+
+### Modelo 2 — Infraestructura vial y normas de tránsito
+
+#### Especificación de la DAG
+
+La estructura operacionaliza **H2**: la localidad y la edad determinan tanto el
+estado percibido de la infraestructura como el cumplimiento declarado, y el
+estado de la infraestructura influye además directamente sobre el cumplimiento.
+Es una DAG saturada respecto de `NOR`: los cuatro nodos restantes son sus padres.
 
 ```{r}
 dag_pablo = empty.graph(nodes = c("LOC", "EDAD", "PAV", "ACE", "NOR"))
@@ -267,36 +857,11 @@ arcs(dag_pablo) = arc_set_pablo
 dag_pablo
 ```
 
-
 ```{r}
 graphviz.plot(dag_pablo, shape = "ellipse")
 ```
 
-## Construcción de la red bayesiana
-
-### Red 1 — ajuste de parámetros sobre la DAG de transporte público
-
-Con la estructura fija, `bn.fit()` estima las CPTs. `method = "mle"` usa máxima
-verosimilitud, es decir, frecuencias relativas observadas. La alternativa es
-`method = "bayes"`, que suaviza con un prior — preferible cuando alguna
-combinación de padres tiene pocas observaciones (con 1191 filas y padres de
-varios niveles, aquí es un riesgo real: las CPTs con celdas vacías salen `NaN`).
-
-```{r}
-bn_mle = bn.fit(dag_jf, data = data, method = "mle")
-bn_mle
-```
-
-**[plantilla]** Inspección de nodos individuales; `E` y `O` son nodos de
-`survey`. El equivalente aquí sería `bn_mle$escol` y `bn_mle$h21_1`.
-
-```{r}
-#| echo: false
-bn_mle$escol
-bn_mle$h21_1
-```
-
-### Red 2 — ajuste de parámetros sobre la DAG vial
+#### Ajuste de los parámetros
 
 ```{r}
 bn_mle_pablo = bn.fit(dag_pablo, data = data_pablo, method = "mle")
@@ -306,49 +871,14 @@ bn_mle_pablo = bn.fit(dag_pablo, data = data_pablo, method = "mle")
 bn_mle_pablo$NOR
 ```
 
-## Significancia de las relaciones de dependencia
+La CPT de `NOR` ya adelanta el resultado: la probabilidad de cumplimiento alto se
+mueve entre 0.40 y 0.80 según la combinación de padres, pero sin un patrón
+monótono en `PAV` ni en `ACE`, y las celdas más extremas corresponden a los
+grupos con menos observaciones.
 
-`ci.test()` prueba $H_0$: los dos primeros argumentos son independientes dado el
-tercero. Un p-valor grande apoya la independencia, y por tanto la ausencia de un
-arco directo entre ambos. Sirve para justificar la estructura propuesta.
+#### Significancia de las relaciones de dependencia
 
-`test = 'mi'` usa información mutua (razón de verosimilitudes); `test = 'x2'` usa
-la ji-cuadrada de Pearson. Ambas son asintóticamente equivalentes, así que se
-corren las dos como verificación cruzada.
-
-### Red 1 — transporte público
-
-```{r}
-set.seed(1)
-ci.test('uso_tp', 'h21_1', c('p17_1','p17_4'), test = 'mi', data = data)
-```
-
-```{r}
-ci.test('uso_tp', 'h21_1', c('p17_1','p17_4'), test = 'x2', data = data)
-```
-
-```{r}
-ci.test('uso_tp', 'h21_1', c('p17_1','p17_4'), test = 'mc-x2', data = data)
-```
-
-**Aquí se condiciona en una sola variable en lugar de dos.**
-
-```{r}
-ci.test('uso_tp', 'h21_1', 'p17_1', test = 'x2', data = data)
-```
-
-```{r}
-ci.test('uso_tp', 'h21_1', 'p17_4', test = 'x2', data = data)
-```
-
- > Hay evidencia fuerte (x² = 194.9, df = 136, p ≈ 0.0007) de que el uso del transporte público se relaciona con la ocupación, aun controlando por la eficiencia y la seguridad percibidas — y por separado con cada una (p ≈ 1e-5 y p ≈ 2e-4). La asociación es consistente con el modelo propuesto, en el que la ocupación influye sobre el uso del transporte público a través del ingreso familiar.
-
-Con `p1a_12` (automóvil particular) como nodo respuesta esta misma prueba salía
-apenas al borde (p ≈ 0.04 por permutación). Al agregar los siete modos públicos
-en `uso_tp` la señal es mucho más limpia: colapsar reduce los grados de libertad
-y concentra la frecuencia en tres celdas en lugar de repartirla.
-
-### Red 2 — infraestructura vial
+Se contrasta cada padre de `NOR` condicionando en los otros tres:
 
 ```{r}
 ci.test("NOR", "PAV", c("LOC", "EDAD", "ACE"), test = "mi", data = data_pablo)
@@ -370,7 +900,19 @@ ci.test("NOR", "EDAD", c("LOC", "PAV", "ACE"), test = "mi", data = data_pablo)
 arc.strength(dag_pablo, data = data_pablo, criterion = "mi")
 ```
 
-### Red 2 — revisión con otro indicador
+Ninguno de los cuatro arcos hacia `NOR` alcanza significancia al 5 %: `PAV` queda
+en $p = 0.060$, `ACE` en $p = 0.092$, `LOC` en $p = 0.484$ y `EDAD` en
+$p = 0.277$. Los dos primeros están lo bastante cerca del umbral como para no
+descartar un efecto pequeño con muestra insuficiente, pero tal como están los
+datos **H2 no se sostiene**.
+
+##### Revisión con un indicador alternativo
+
+Una posible explicación del resultado es que `ACE` sea una mala
+operacionalización: la ENMT no pregunta por banquetas, así que el reactivo
+disponible es el de puentes peatonales, que muchas personas simplemente no
+utilizan. El archivo alternativo sustituye ese reactivo por el de señalamientos
+viales, con 860 casos.
 
 ```{r}
 data_pablo_alt = read.csv("data/clean_enmt_vial_alt.csv", stringsAsFactors = TRUE)
@@ -385,16 +927,15 @@ ci.test("NOR", "ACE", c("LOC", "EDAD", "PAV"), test = "mi", data = data_pablo_al
 ci.test("NOR", "PAV", c("LOC", "EDAD", "ACE"), test = "mi", data = data_pablo_alt)
 ```
 
-## ¿Cuál es la red que mejor se ajusta a los datos?
+Con señalamientos, el arco `ACE → NOR` sí resulta significativo
+($mi = 26.3$, $p = 0.0097$), mientras que `PAV → NOR` sigue sin serlo
+($p = 0.229$). La lectura sustantiva es que lo que se asocia con el cumplimiento
+declarado de las normas es la **señalización** —el elemento de la infraestructura
+que efectivamente comunica la norma— y no el estado del pavimento. Es un
+resultado que no estaba en la hipótesis original y que surge de someter la
+operacionalización a prueba.
 
-### Network scores — red 1
-
-```{r}
-score(dag_jf, data = data, type = 'bic')
-score(dag_jf, data = data, type = 'aic')
-```
-
-### Network scores — red 2
+#### Comparación de estructuras
 
 ```{r}
 score(dag_pablo, data = data_pablo, type = "bic")
@@ -403,17 +944,6 @@ score(dag_pablo, data = data_pablo, type = "bic")
 ```{r}
 score(dag_pablo, data = data_pablo, type = "aic")
 ```
-
-## Mejor estructura con hill-climbing
-
-### Red 1
-
-```{r}
-best_dag = hc(data)
-best_dag
-```
-
-### Red 2
 
 ```{r}
 best_dag_pablo = hc(data_pablo)
@@ -432,113 +962,49 @@ score(best_dag_pablo, data = data_pablo, type = "aic")
 graphviz.plot(best_dag_pablo, shape = "ellipse")
 ```
 
-## Pertinencia de las relaciones de la nueva DAG
+La red aprendida, `[LOC][EDAD][PAV][NOR][ACE|PAV]`, mejora el BIC de $-2\,910$ a
+$-2\,749$ y el AIC de $-2\,819$ a $-2\,732$, y conserva un único arco:
+`PAV → ACE`. Igual que en el modelo 1 —y aquí con solo 5 nodos binarios o
+ternarios, donde la penalización por complejidad es mucho más benigna—, `NOR`
+queda sin padres.
 
-Después hc() arma la red por su cuenta, sin que le digamos qué flechas poner, y
-devuelve [LOC][EDAD][PAV][NOR][ACE|PAV]. Ahí NOR aparece solo, sin una sola flecha
-que le entre: el algoritmo concluyó que ninguna de las otras variables ayuda a predecir
-el cumplimiento. Por eso los últimos dos cpquery dan 0.6865 y 0.6864,en esa red da igual cómo califiques tus calles.
+#### Pertinencia de las relaciones de la nueva DAG
 
-Tres detalles:
+Que `hc()` deje `NOR` aislada, sin una sola flecha entrante, significa que
+concluyó que ninguna de las otras variables ayuda a predecir el cumplimiento. Es
+consistente con las pruebas de independencia condicional de la sección anterior,
+y hay tres razones que lo explican:
 
-- **Los números no van en orden.** Las cuatro combinaciones de PAV y ACE dan 73 (bien
-  las dos), 70 (mal las dos), 59 (bien el pavimento pero mal las aceras) y 54 (al revés).
-  Si la relación fuera real, 73 debería ser el más alto, 70 el más bajo y los mixtos
-  quedar en medio. Pasa lo contrario: los mixtos son los más bajos de los cuatro. Además
-  son los dos grupos más chicos de la muestra, así que sus porcentajes se mueven mucho
-  con pocos casos. Ese desorden es lo que hace que hc() tire los arcos.
-- **La pregunta mide autoimagen.** p31 pregunta qué tanto cumple uno mismo, no qué
-  tanto cumplen los demás. En el summary se ve el efecto: 554 de las 806 personas
-  quedan en alto y solo 252 en bajo. Con casi todos amontonados del mismo lado queda
-  poco margen para que aparezcan diferencias entre grupos.
-- **El resultado depende del reactivo.** La ENMT no pregunta por banquetas, así que ACE
-  usa puentes peatonales. En la sección de significancia se repite todo con señalamientos
-  viales: ahí el ci.test de ACE baja a 0.0097, que sí es significativo, mientras que el de
-  PAV se queda en 0.229. Parece entonces que lo que se relaciona con el cumplimiento
-  declarado es la señalización, no el estado del piso.
+- **Los números no van en orden.** Como se verá en las consultas, las cuatro
+  combinaciones de `PAV` y `ACE` dan 0.72 (bien las dos), 0.70 (mal las dos),
+  0.59 (bien el pavimento pero mal las aceras) y 0.54 (al revés). Si la relación
+  fuera real y monótona, 0.72 debería ser el valor más alto, 0.70 el más bajo y
+  los mixtos quedar en medio. Ocurre lo contrario: los mixtos son los dos más
+  bajos. Además son los dos grupos más pequeños de la muestra, de modo que sus
+  proporciones se mueven mucho con pocos casos. Ese desorden es justamente lo que
+  hace que `hc()` descarte los arcos.
+- **El reactivo mide autoimagen.** `p31` pregunta qué tanto cumple uno mismo, no
+  qué tanto cumplen los demás. En el `summary` se ve el efecto: 554 de 806
+  personas quedan en `alto` y solo 252 en `bajo`. Con casi el 69 % de la muestra
+  amontonada del mismo lado, el margen para que aparezcan diferencias entre
+  grupos es estrecho —un caso de libro de sesgo de deseabilidad social.
+- **El resultado depende del reactivo.** Como muestra la revisión con el
+  indicador alternativo, al cambiar puentes peatonales por señalamientos el
+  `ci.test` de `ACE` baja a 0.0097 y sí resulta significativo. La conclusión "la
+  infraestructura no importa" es por tanto demasiado fuerte: lo correcto es decir
+  que *estos dos indicadores concretos* de infraestructura física no discriminan.
 
-## Respuesta a las queries
+#### Respuesta a Q2
 
-### Query 1 — uso del transporte público
+> **¿Existe una diferencia en la percepción sobre el cumplimiento de las normas
+> de tránsito entre las personas que consideran que el pavimento y las aceras de
+> su localidad se encuentran en buen estado y aquellas que consideran que no?**
 
-> **¿Cuál es la probabilidad de que personas con altos ingresos en localidades
-> grandes se muevan en transporte público si es eficiente y seguro?**
+Se responde dos veces: sobre la DAG propuesta, que sí tiene los arcos
+`PAV → NOR` y `ACE → NOR`, y sobre la aprendida, que no los tiene. La comparación
+de ambas respuestas es en sí misma el resultado.
 
-Traducida a evidencia sobre la red:
-
-| Condición | Variable | Valor |
-|---|---|---|
-| altos ingresos | `ing_fam` | `7` (5–6 SM) u `8` (más de 5 SM) |
-| localidad grande | `Tam_loc` | `1` (100 000+ habitantes) |
-| es eficiente | `p17_1` | `1` (Eficiente) |
-| es seguro | `p17_4` | `1` (Seguro) |
-
-Aquí se ajusta con `method = "bayes"` y no con `"mle"`: la evidencia es una
-combinación específica de cuatro condiciones, y con MLE varias celdas de la CPT
-salen `0` o `NaN` por falta de observaciones, lo que sesga el muestreo.
-
-`method = "lw"` (*likelihood weighting*) en vez del muestreo por rechazo por lo
-mismo — la evidencia es rara (61 de 1190 filas la cumplen), así que rechazar
-descartaría casi todas las simulaciones. `lw` fija la evidencia y pondera. Exige
-pasarla como `list()`, lo cual además permite `ing_fam = c("7", "8")` para
-aceptar cualquiera de los dos niveles altos.
-
-```{r}
-bn = bn.fit(dag_jf, data = data, method = "bayes")
-
-evidencia = list(ing_fam = c("7", "8"), Tam_loc = "1", p17_1 = "1", p17_4 = "1")
-
-set.seed(42)
-cpquery(bn, event = (uso_tp == "Cotidiano"), evidence = evidencia,
-        method = "lw", n = 10^6)
-```
-
-Es decir, **≈ 59 %** usa transporte público *cotidianamente* bajo esas
-condiciones. Como `uso_tp` tiene tres niveles, la misma variable contesta también
-la lectura laxa de "se mueve en transporte público" (cotidiana **u**
-ocasionalmente):
-
-```{r}
-set.seed(42)
-cpquery(bn, event = (uso_tp != "Nunca"), evidence = evidencia,
-        method = "lw", n = 10^6)
-```
-
-≈ 82 %. Y el contraste que le da sentido al "si es eficiente y seguro" — misma
-gente, mismo tamaño de localidad, pero con el transporte percibido como
-ineficiente e inseguro:
-
-```{r}
-set.seed(42)
-cpquery(bn, event = (uso_tp == "Cotidiano"),
-        evidence = list(ing_fam = c("7", "8"), Tam_loc = "1",
-                        p17_1 = "2", p17_4 = "2"),
-        method = "lw", n = 10^6)
-```
-
-≈ 55 %. La diferencia es de apenas ~4 puntos: para este grupo, la percepción de
-calidad del transporte público **mueve poco la aguja**. Contraintuitivo, pero
-coherente con el dag_jf — en localidades grandes el uso cotidiano está sostenido
-por la disponibilidad de la red, no por lo bien que se le califique.
-
-Contraste contra los datos crudos, para verificar que la red no está inventando:
-
-```{r}
-sub = subset(data, ing_fam %in% c("7", "8") & Tam_loc == "1" &
-                   p17_1 == "1" & p17_4 == "1")
-nrow(sub)
-table(sub$uso_tp)
-prop.table(table(sub$uso_tp))
-```
-
-37 de 61 = 60.7 % cotidiano en la muestra directa, contra 59 % que estima la red.
-Concuerdan, así que el resultado no depende de la estructura impuesta.
-
-### Query 2 — infraestructura vial y normas de tránsito
-
-> **¿Existe una diferencia en la percepción sobre el cumplimiento de las normas de
-> tránsito entre las personas que consideran que el pavimento y las aceras de su
-> localidad se encuentran en buen estado y aquellas que consideran que no?**
+Sobre la red propuesta, las cuatro combinaciones de evidencia:
 
 ```{r}
 bn_pablo = bn.fit(best_dag_pablo, data = data_pablo)
@@ -576,6 +1042,8 @@ cpquery(bn_mle_pablo,
         n = 10^6)
 ```
 
+Y sobre la red aprendida por *hill-climbing*, en la que `NOR` no tiene padres:
+
 ```{r}
 set.seed(42)
 cpquery(bn_pablo,
@@ -592,9 +1060,333 @@ cpquery(bn_pablo,
         n = 10^6)
 ```
 
-Casi no hay diferencia. Todos los cpquery contestan lo mismo: de cada 100 personas con
-cierta opinión sobre sus calles, cuántas dicen cumplir mucho las normas. Con la DAG que
-armamos a mano salen 73 entre quienes califican bien el pavimento y las aceras, y 70
-entre quienes califican mal las dos. Tres puntos de diferencia. Los ci.test dan 0.060
-para PAV y 0.092 para ACE; los dos pasan de 0.05, así que no se puede descartar que
-sea azar de la muestra.
+| Evidencia | DAG propuesta | DAG aprendida |
+|---|---|---|
+| `PAV` bueno, `ACE` bueno | 0.725 | 0.687 |
+| `PAV` malo, `ACE` malo   | 0.697 | 0.686 |
+| `PAV` bueno, `ACE` malo  | 0.585 | — |
+| `PAV` malo, `ACE` bueno  | 0.539 | — |
+
+**Casi no hay diferencia.** Cada `cpquery` responde lo mismo: de cada 100
+personas con cierta opinión sobre sus calles, cuántas dicen cumplir mucho las
+normas. Con la DAG construida a mano salen 72.5 entre quienes califican bien
+pavimento y puentes, y 69.7 entre quienes califican mal ambos: menos de tres
+puntos de diferencia. Los `ci.test` correspondientes dan 0.060 para `PAV` y
+0.092 para `ACE`; ambos superan el umbral de 0.05, así que no puede descartarse
+que se trate de azar muestral. Sobre la red aprendida la diferencia desaparece
+por completo (0.6865 frente a 0.6864, es decir, la proporción incondicional de
+`NOR = alto`), que es exactamente lo que debe ocurrir cuando el nodo no tiene
+padres, y sirve como verificación de que el muestreo está funcionando.
+
+### Modelo 3 — Ingreso familiar y uso del automóvil particular
+
+> **Q3.** ¿Cuál es la probabilidad de cada tipo de ingreso familiar y uso
+> cotidiano del automóvil dado el tamaño de la localidad?
+
+Es una consulta de naturaleza distinta a las dos anteriores: no pide una
+probabilidad puntual ni una comparación entre dos escenarios, sino una
+**distribución conjunta** de dos variables —cuartil de ingreso y uso del
+automóvil— condicionada a una tercera. El resultado es por tanto una tabla de
+4 × 4 celdas, una por combinación de cuartil y tamaño de localidad.
+
+#### Especificación de la DAG
+
+La estructura mínima que la consulta exige es una bifurcación: `Tam_loc` como
+padre común de las dos variables sobre las que se pregunta, ya que ambas se
+condicionan a ella.
+
+```{r}
+dag_emi = empty.graph(nodes = c("Tam_loc", "ing_q", "auto"))
+```
+
+A esa bifurcación se añade un tercer arco, `ing_q → auto`. La justificación es la
+misma que sostiene `ing_fam → uso_tp` en el modelo 1, con el signo invertido: el
+ingreso es lo que permite adquirir y mantener un automóvil, de modo que debe
+influir sobre su uso cotidiano por encima de lo que ya explique el tamaño de la
+localidad. Dejar solo la bifurcación equivaldría a afirmar
+$\text{ing\_q} \perp\!\!\!\perp \text{auto} \mid \text{Tam\_loc}$, hipótesis que se
+contrasta explícitamente más abajo.
+
+```{r}
+arc_set_emi = matrix(c("Tam_loc", "ing_q",
+                       "Tam_loc", "auto",
+                       "ing_q",   "auto"),
+                     byrow = TRUE, ncol = 2,
+                     dimnames = list(NULL, c("from", "to")))
+```
+
+```{r}
+arcs(dag_emi) = arc_set_emi
+dag_emi
+```
+
+```{r}
+graphviz.plot(dag_emi, shape = "ellipse")
+```
+
+#### Ajuste de los parámetros
+
+```{r}
+bn_mle_emi = bn.fit(dag_emi, data = data_emi, method = "mle")
+```
+
+```{r}
+bn_mle_emi$ing_q
+```
+
+```{r}
+bn_mle_emi$auto
+```
+
+Analizando estas probabilidades condicionales se puede notar que sí cambian entre
+cuartiles de ingreso, ya que las variaciones que se pueden ver entre columnas de
+la misma CPT no son del mismo orden de magnitud (por ejemplo 0.2000 y 0.3087 en
+la columna de localidades de 100 000 o más habitantes), lo que sugiere que `ing_q` sí tiene una dependencia directa sobre
+el uso cotidiano del automóvil particular.
+
+El patrón se lee mejor en el margen, promediando sobre el tamaño de localidad:
+la probabilidad de uso cotidiano del automóvil pasa de 0.128 en `Q1` a 0.173 en
+`Q2`, 0.228 en `Q3` y 0.341 en `Q4`. Es un gradiente monótono que casi triplica
+el valor inicial, y es la señal más limpia de los tres modelos.
+
+#### Significancia de las relaciones de dependencia
+
+Se contrastan los dos arcos que entran a `auto`, cada uno condicionando en el
+otro padre:
+
+```{r}
+ci.test("auto", "ing_q", "Tam_loc", test = "x2", data = data_emi)
+```
+
+```{r}
+ci.test("auto", "Tam_loc", "ing_q", test = "x2", data = data_emi)
+```
+
+Ambos resultan significativos: `ing_q → auto` con $x^2 = 59.2$, $\mathrm{df} = 24$,
+$p = 8.4\times10^{-5}$, y `Tam_loc → auto` con $x^2 = 47.6$, $p = 0.0029$. Es el
+único de los tres modelos en el que **todos** los arcos hacia la variable
+respuesta superan la prueba, y confirma que el tercer arco añadido a la
+bifurcación no era decorativo: el ingreso aporta información sobre el uso del
+automóvil que el tamaño de la localidad no contiene.
+
+#### Comparación de estructuras
+
+```{r}
+score(dag_emi, data = data_emi, type = "bic")
+score(dag_emi, data = data_emi, type = "aic")
+```
+
+```{r}
+best_dag_emi = hc(data_emi)
+modelstring(best_dag_emi)
+```
+
+```{r}
+score(best_dag_emi, data = data_emi, type = "bic")
+score(best_dag_emi, data = data_emi, type = "aic")
+```
+
+Aquí los dos criterios **se contradicen**, y es el hallazgo metodológico de esta
+sección. El *hill-climbing*, que optimiza BIC por omisión, vuelve a dejar la
+variable respuesta sin padres —`[Tam_loc][auto][ing_q|Tam_loc]`— y mejora el BIC
+de $-3\,274.6$ a $-3\,212.2$. Pero por AIC gana la DAG propuesta: $-3\,161.2$
+frente a $-3\,171.2$. La diferencia entre ambos criterios es solo el peso de la
+penalización —$\log(n)/2 \approx 3.4$ por parámetro en BIC contra $1$ en AIC—, de
+modo que el desacuerdo ubica a este modelo justo en la frontera: la dependencia
+existe y las pruebas la detectan con $p \approx 10^{-5}$, pero su magnitud está en
+el límite de lo que 921 observaciones pueden pagar en complejidad. La inferencia
+se hace sobre la DAG propuesta, coherentemente con el resultado de `ci.test`.
+
+#### Respuesta a Q3
+
+La consulta pide la probabilidad conjunta de cuartil de ingreso y uso cotidiano
+del automóvil para cada tamaño de localidad, es decir
+$P(\text{ing\_q} = q,\; \text{auto} = \text{Cotidiano} \mid \text{Tam\_loc} = t)$
+para las 16 combinaciones. Se recorren con un doble ciclo en vez de escribir 16
+llamadas: `cpquery()` captura sus argumentos sin evaluarlos, así que el evento
+variable se construye como texto y se inyecta con `eval(parse(...))`, que es el
+modismo documentado para consultas programáticas. La evidencia se pasa como
+`list()` porque se usa `method = "lw"`.
+
+```{r}
+bn_emi = bn.fit(dag_emi, data = data_emi, method = "bayes")
+
+tams = levels(data_emi$Tam_loc)
+tabla_q3 = matrix(0, 4, 4, dimnames = list(paste0("Q", 1:4), tams))
+
+set.seed(42)
+for (q in 1:4) for (t in seq_along(tams)) {
+  evento = paste0('(ing_q == "Q', q, '") & (auto == "Cotidiano")')
+  tabla_q3[q, t] = cpquery(bn_emi,
+                           event    = eval(parse(text = evento)),
+                           evidence = list(Tam_loc = tams[t]),
+                           method   = "lw", n = 10^6)
+}
+
+round(tabla_q3, 4)
+```
+
+Cada columna es una distribución conjunta parcial, así que su suma es la
+probabilidad marginal de uso cotidiano del automóvil en ese tamaño de localidad:
+
+```{r}
+round(colSums(tabla_q3), 4)
+```
+
+La lectura tiene dos direcciones. **Por columna** (dentro de un mismo tamaño de
+localidad), la probabilidad conjunta crece con el ingreso en las localidades
+grandes: en las de 100 000 o más habitantes va de 0.023 en `Q1` a 0.096 en `Q4`,
+y en las de 15 000 a 99 999 de 0.012 a 0.132. En las localidades pequeñas el
+patrón se invierte parcialmente —en las de menos de 2 500 habitantes el valor más
+alto lo tiene `Q2` (0.063)—, pero eso refleja la composición de la muestra más
+que la conducta: en las localidades chicas casi no hay hogares en `Q4`. **Por
+fila**, el uso cotidiano del automóvil se concentra en las localidades grandes:
+la marginal cae de 0.239 y 0.263 en las dos categorías más grandes a 0.141 y
+0.180 en las dos más pequeñas.
+
+Vale la pena notar que este resultado convive sin contradicción con el del
+modelo 1. Allí, entre personas de ingresos altos en localidades grandes, el
+transporte público se usaba cotidianamente en un 59 % de los casos; aquí, el
+automóvil se usa cotidianamente en un 24 % de las localidades grandes. Las dos
+cosas pueden ser ciertas a la vez porque los modos no son excluyentes: una misma
+persona puede declarar uso cotidiano de ambos.
+
+##### Validación contra la muestra
+
+Igual que en el modelo 1, se contrasta la estimación contra el conteo directo:
+
+```{r}
+round(prop.table(table(data_emi$ing_q, data_emi$auto, data_emi$Tam_loc),
+                 margin = 3)[, "Cotidiano", ], 4)
+```
+
+Las 16 celdas coinciden con las estimadas por muestreo hasta la tercera o cuarta
+cifra decimal. La coincidencia es exacta y no aproximada por una razón
+estructural: con `Tam_loc` como única evidencia y sin nodos no observados, la
+consulta se reduce al producto de dos entradas de las CPTs,
+$P(\text{ing\_q} \mid \text{Tam\_loc}) \cdot P(\text{auto} \mid \text{ing\_q}, \text{Tam\_loc})$,
+que con estimación por máxima verosimilitud es justamente la frecuencia relativa
+observada. El `cpquery` no aporta aquí precisión adicional, pero sí verifica que
+el muestreo esté funcionando —lo que da confianza en las consultas de los
+modelos 1 y 2, donde sí hay nodos intermedios y el conteo directo no es viable.
+
+### Discusión
+
+Los tres modelos convergen en un mismo patrón: **la percepción subjetiva de la
+calidad de un servicio o de una infraestructura es un predictor mucho más débil
+de la conducta declarada que las variables estructurales de disponibilidad y
+posición socioeconómica.** En el modelo 1 la percepción de eficiencia y seguridad
+mueve el uso cotidiano del transporte público apenas cuatro puntos porcentuales
+en el grupo de ingresos altos en ciudades grandes; en el modelo 2 el estado
+percibido del pavimento y de los puentes peatonales mueve el cumplimiento
+declarado tres puntos, dentro del ruido muestral. El modelo 3 cierra el
+argumento por el lado contrario: cuando la variable explicativa **sí** es
+estructural —el cuartil de ingreso, que determina la capacidad de comprar y
+mantener un automóvil—, la señal aparece limpia, monótona y significativa
+($p = 8.4\times10^{-5}$), sobre la misma encuesta y con menos observaciones (921).
+No es entonces que la ENMT carezca de potencia: es que la percepción predice
+poco.
+
+También convergen en una advertencia metodológica. En los tres casos el
+*hill-climbing* con BIC produce una red que gana en ese score y que, sin
+embargo, es sustantivamente vacía respecto de la pregunta de investigación: en
+los tres modelos la variable respuesta queda sin padres. Las causas difieren —en
+el modelo 1 domina la penalización frente a nodos de alta cardinalidad
+(`estrato` con 16 niveles, `h21_1` con 18); en el modelo 2, con solo cinco nodos
+de baja cardinalidad, la causa es la ausencia genuina de señal, confirmada de
+forma independiente por las pruebas de independencia condicional; y en el
+modelo 3 el veredicto depende del criterio, porque BIC prefiere la red aprendida
+y AIC la propuesta. La lección es que el score y la prueba de hipótesis responden
+preguntas distintas, y que reportar solo el resultado del aprendizaje automático
+de estructura habría ocultado, en los modelos 1 y 3, dependencias que sí existen
+y que las pruebas detectan con $p \approx 10^{-5}$.
+
+Un tercer hallazgo es la sensibilidad al reactivo. Cambiar puentes peatonales por
+señalamientos viales convierte un arco no significativo ($p = 0.092$) en uno
+significativo ($p = 0.0097$) sobre la misma pregunta sustantiva. Esto acota
+fuertemente el alcance de la respuesta negativa a Q2: lo que no se detecta es el
+efecto de *esos* indicadores, no el de la infraestructura vial en general.
+
+## Conclusiones
+
+**Sobre Q1.** La probabilidad de que una persona de ingresos altos en una
+localidad de 100 000 habitantes o más use cotidianamente el transporte público,
+percibiéndolo eficiente y seguro, es de **≈ 59 %**, y de **≈ 82 %** si se admite
+también el uso ocasional. El resultado es robusto: coincide con la frecuencia
+muestral directa (60.7 %, $n = 61$) y se obtiene con un ajuste bayesiano de las
+CPTs y muestreo por ponderación de verosimilitud, adecuados para evidencia rara.
+El contraste con el escenario de percepción negativa (**≈ 55 %**) muestra que la
+valoración del servicio explica poco: en ciudades grandes el uso cotidiano parece
+sostenido por la disponibilidad de la red más que por su calidad percibida.
+
+**Sobre Q2.** No se encuentra una diferencia estadísticamente significativa en el
+cumplimiento declarado de las normas de tránsito entre quienes califican bien y
+mal la infraestructura de su localidad: 72.5 % frente a 69.7 %, con
+$p = 0.060$ (pavimento) y $p = 0.092$ (puentes peatonales). El *hill-climbing*
+elimina ambos arcos. Sin embargo, al sustituir el indicador de puentes por el de
+señalamientos viales la asociación sí aparece ($p = 0.0097$), lo que sugiere que
+el vínculo relevante es con la **señalización** —el componente de la
+infraestructura que comunica la norma— y no con el estado físico del pavimento.
+
+**Sobre Q3.** La probabilidad conjunta de cuartil de ingreso y uso cotidiano del
+automóvil, condicionada al tamaño de localidad, crece con el ingreso dentro de
+las localidades grandes: en las de 100 000 o más habitantes va de **0.023** en
+`Q1` a **0.096** en `Q4`. Sumando cada columna, el uso cotidiano del automóvil alcanza **0.239** y
+**0.263** en las dos categorías de localidad más grandes, frente a **0.141** y
+**0.180** en las dos más pequeñas. Leída al margen del tamaño de localidad, la
+probabilidad de uso cotidiano pasa de **0.128** en el cuartil de ingreso más bajo
+a **0.341** en el más alto. Es el único de los tres modelos donde todos los arcos
+propuestos hacia la variable respuesta resultan significativos
+($p = 8.4\times10^{-5}$ para el ingreso, $p = 0.0029$ para el tamaño de
+localidad), aunque BIC y AIC discrepan sobre si la estructura completa se
+justifica.
+
+**Implicaciones.** Para el diseño de política, ambos resultados apuntan en la
+misma dirección: las intervenciones sobre la percepción (campañas de imagen,
+mejoras cosméticas) tienen un efecto esperado pequeño frente a las intervenciones
+sobre la disponibilidad y la legibilidad del sistema (cobertura de la red,
+señalización). Para la práctica del modelado, el trabajo ilustra que una DAG
+especificada desde el dominio puede ser preferible a una aprendida por score
+cuando el objetivo es responder consultas condicionales, aunque pierda la
+comparación de BIC.
+
+**Limitaciones.**
+
+1. *Sesgo de deseabilidad social.* `NOR` proviene de un reactivo autodeclarado y
+   el 69 % de la muestra se ubica en la categoría alta; el desbalance limita
+   estructuralmente la potencia de cualquier prueba sobre esa variable.
+2. *Tamaño de muestra frente a cardinalidad.* Con 1 190 casos y nodos de hasta 18
+   niveles, varias CPTs tienen celdas vacías. Esto obliga al suavizado bayesiano
+   y penaliza a la DAG propuesta en el score.
+3. *Datasets no comparables.* Los tres modelos se ajustan sobre subconjuntos
+   distintos de la ENMT (1 190, 806 y 921 casos), por lo que sus scores no son
+   comparables entre sí y no pueden integrarse en una sola red.
+4. *Ausencia de identificación causal.* Los arcos representan dependencias
+   probabilísticas orientadas por conocimiento del dominio; los datos son
+   observacionales y transversales, de modo que las direcciones no están
+   identificadas empíricamente y las lecturas causales son interpretativas.
+5. *Discretización gruesa del ingreso.* Los "cuartiles" de `ing_fam` no pueden
+   ser exactos, porque la variable original tiene siete niveles ordinales con
+   empates masivos: los grupos resultantes pesan 17.8 %, 37.0 %, 20.0 % y 25.2 %.
+   Además, el 22 % de la muestra sin ingreso declarado se excluye del modelo 3, y
+   nada garantiza que esa no respuesta sea aleatoria respecto del ingreso real.
+6. *No se incorpora el diseño muestral.* El factor de expansión `Pondi2` se
+   descarta al recortar el data frame, pues `bn.fit()` no admite ponderaciones;
+   las estimaciones son por tanto no expandidas a la población.
+
+**Trabajo futuro.** Cuatro extensiones inmediatas: (i) agrupar `h21_1` y
+`estrato` en menos categorías para reducir la penalización por complejidad y
+permitir una comparación de scores más justa entre la DAG propuesta y la
+aprendida; (ii) usar algoritmos de aprendizaje basados en restricciones —`pc` o
+`gs`, que operan por pruebas de independencia condicional en vez de por score—
+que en este contexto deberían conservar los arcos que `ci.test` sí detecta;
+(iii) imponer una lista negra y una lista blanca (`blacklist`/`whitelist`) sobre
+`hc()` para incorporar el conocimiento del dominio al aprendizaje en vez de
+contraponerlo; y (iv) sustituir el reactivo autodeclarado de cumplimiento por un
+indicador de percepción sobre terceros, menos expuesto al sesgo de deseabilidad
+social.
+
+## Referencias
+
+::: {#refs}
+:::

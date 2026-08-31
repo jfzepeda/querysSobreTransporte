@@ -1,5 +1,4 @@
-.quarto
-data/enmt_unam.csv
+*
+!*.qmd
 /.quarto/
 **/*.quarto_ipynb
-*.html
