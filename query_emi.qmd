@@ -1,5 +1,88 @@
 ---
 title: "query_emi"
-format: html
+format: pwd
+    html:
+        toc: true
+        hmtl-math-method: katex
+        embed-resources: true
+        df-print: kable
+editor: source
 ---
+```{r}
+# --- 1. Cargar y limpiar ---
+data = read.csv("data/clean_enmt_unam.csv", stringsAsFactors = FALSE)
+
+data$ing_fam[data$ing_fam == 0] = NA          
+data$p1a_12[data$p1a_12 %in% c(8, 9)] = NA    
+```
+
+```{r}
+data = data[, c("Tam_loc", "ing_fam", "p1a_12")]
+data = na.omit(data)
+```
+
+```{r}
+# --- 2. Discretizar ing_fam en cuartiles ---
+cortes = quantile(data$ing_fam, probs = seq(0, 1, 0.25))
+cortes[1] = -Inf; cortes[length(cortes)] = Inf   # que Q1 y Q4 cubran los extremos
+
+data$ing_fam_q = cut(data$ing_fam, breaks = unique(cortes),
+                      labels = paste0("Q", 1:(length(unique(cortes)) - 1)),
+                      include.lowest = TRUE)
+
+table(data$ing_fam_q)   # revisar que quedaron ~balanceados
+```
+
+```{r}
+# --- 3. Recodificar p1a_12 y Tam_loc como factor ---
+data$p1a_12 = factor(data$p1a_12, levels = 1:3,
+                      labels = c("Cotidiano", "Ocasional", "Nunca"))
+data$Tam_loc = factor(data$Tam_loc, levels = 1:4,
+                       labels = c("100k+", "15k-99999", "2500-14999", "1-2499"))
+
+data = data[, c("Tam_loc", "ing_fam_q", "p1a_12")]
+str(data)
+```
+```{r}
+library(bnlearn)
+
+# --- 4. dag_jf reducido: mismo espíritu que arc_set, solo 3 nodos ---
+dag_q = empty.graph(nodes = c("Tam_loc", "ing_fam_q", "p1a_12"))
+
+arc_set_q = matrix(c("Tam_loc",  "ing_fam_q",
+                      "Tam_loc",  "p1a_12",
+                      "ing_fam_q","p1a_12"),
+                    byrow = TRUE, ncol = 2,
+                    dimnames = list(NULL, c("from", "to")))
+
+arcs(dag_q) = arc_set_q
+graphviz.plot(dag_q, shape = "ellipse")
+
+```
+```{r}
+# --- 5. La consulta: P(ing_fam_q = Qi, p1a_12 = "Cotidiano" | Tam_loc = t) ---
+set.seed(42)
+
+niveles_tam  = levels(data$Tam_loc)
+niveles_ing  = levels(data$ing_fam_q)
+
+resultado = expand.grid(Tam_loc = niveles_tam, ing_fam_q = niveles_ing)
+resultado$prob = NA
+
+for (i in seq_len(nrow(resultado))) {
+  t  = as.character(resultado$Tam_loc[i])
+  qi = as.character(resultado$ing_fam_q[i])
+
+  resultado$prob[i] = cpquery(
+    bn_q,
+    event    = (ing_fam_q == qi & p1a_12 == "Cotidiano"),
+    evidence = list(Tam_loc = t),
+    method   = "lw", n = 10^5
+  )
+}
+
+# tabla Tam_loc x cuartil de ingreso, cada celda = P(Q_i, Cotidiano | Tam_loc)
+tabla = xtabs(prob ~ Tam_loc + ing_fam_q, data = resultado)
+round(tabla, 3)
+```
 
