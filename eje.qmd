@@ -1,5 +1,5 @@
 ---
-title: "Determinantes del uso del transporte público, del automóvil particular y del cumplimiento declarado de las normas de tránsito: un análisis con redes bayesianas multinomiales sobre la ENMT"
+title: "Movilidad, percepción y conducta declarada: cuatro consultas sobre la ENMT con redes bayesianas multinomiales"
 lang: es
 format: 
     html:
@@ -133,26 +133,28 @@ references:
 
 ## Abstract
 
-Este trabajo modela con **redes bayesianas multinomiales** tres preguntas de
+Este trabajo modela con **redes bayesianas multinomiales** cuatro preguntas de
 movilidad urbana sobre la Encuesta Nacional de Movilidad y Transporte (ENMT) del
 IIJ-UNAM: (i) qué tan probable es que una persona de ingresos altos en una
 localidad grande use cotidianamente el transporte público cuando lo percibe
 eficiente y seguro, (ii) si el estado percibido de la infraestructura vial se
 asocia con el cumplimiento declarado de las normas de tránsito, y (iii) cómo se
 distribuyen conjuntamente el cuartil de ingreso familiar y el uso cotidiano del
-automóvil particular según el tamaño de la localidad.
+automóvil particular según el tamaño de la localidad, y (iv) si hombres y mujeres
+califican de distinta forma la comodidad del transporte público que usan a
+diario.
 
 La metodología consta de cinco etapas: construcción de variables categóricas a
 partir de los reactivos crudos —incluida una variable artificial `uso_tp` que
 colapsa los siete modos de transporte público en una sola escala ordinal—,
-especificación de tres DAGs por conocimiento del dominio, estimación de las
+especificación de cuatro DAGs por conocimiento del dominio, estimación de las
 tablas de probabilidad condicional con `bn.fit()`, validación de los arcos con
 pruebas de independencia condicional (`ci.test`) y comparación contra la
 estructura aprendida automáticamente por *hill-climbing* (`hc`), y finalmente
 inferencia probabilística con `cpquery()` por ponderación de verosimilitud.
 Todo se implementa en R con el paquete `bnlearn` sobre 1 190 casos para el
-modelo de transporte público, 806 para el de infraestructura vial y 921 para el
-de ingreso y automóvil.
+modelo de transporte público, 806 para el de infraestructura vial, 921 para el de
+ingreso y automóvil y 641 para el de comodidad.
 
 Los resultados principales son: (1) $P(\text{uso cotidiano} \mid \text{ingreso
 alto}, \text{localidad grande}, \text{eficiente}, \text{seguro}) \approx 0.59$,
@@ -168,7 +170,10 @@ puentes por el de señalamientos viales sí aparece asociación ($p = 0.0097$).
 ingreso ($0.13$, $0.17$, $0.23$ y $0.34$) y se concentra en las localidades
 grandes ($0.24$ y $0.26$ frente a $0.14$ y $0.18$); es el único de los tres
 modelos en el que todos los arcos propuestos superan la prueba de independencia
-condicional.
+condicional. (4) La brecha de género en la calificación de comodidad es de
+cinco puntos porcentuales ($0.55$ en hombres frente a $0.60$ en mujeres) y no es
+significativa ($p = 0.240$), mientras que la seguridad percibida mueve esa misma
+probabilidad más de cincuenta puntos ($0.24$ frente a $0.75$).
 
 Se concluye que, en localidades grandes, la **disponibilidad** de la red importa
 más que su valoración subjetiva para explicar el uso cotidiano del transporte
@@ -226,7 +231,7 @@ es una afirmación falsable mediante una prueba de independencia condicional.
 
 ### Problema e hipótesis
 
-El trabajo aborda tres preguntas concretas:
+El trabajo aborda cuatro preguntas concretas:
 
 > **Q1.** ¿Cuál es la probabilidad de que personas con altos ingresos en
 > localidades grandes se muevan en transporte público si lo consideran eficiente
@@ -241,6 +246,9 @@ El trabajo aborda tres preguntas concretas:
 > cotidiano del automóvil dado el tamaño de la localidad, discretizando el
 > ingreso familiar en cuartiles?
 
+> **Q4.** ¿Existen diferencias entre hombres y mujeres en la calificación de
+> comodidad del transporte público que usan cotidianamente?
+
 Las hipótesis de trabajo asociadas son:
 
 - **H1.** El uso del transporte público depende del ingreso familiar y de la
@@ -253,6 +261,8 @@ Las hipótesis de trabajo asociadas son:
 - **H3.** El uso cotidiano del automóvil particular depende del ingreso familiar
   por encima de lo que explique el tamaño de la localidad; es decir, ingreso y
   automóvil **no** son condicionalmente independientes dado `Tam_loc`.
+- **H4.** La calificación de comodidad del transporte público difiere entre
+  hombres y mujeres, controlando por localidad, edad y seguridad percibida.
 
 Ambas hipótesis se someten a prueba dos veces: como restricciones estructurales
 sujetas a `ci.test`, y como estructuras completas comparadas contra la DAG que
@@ -308,6 +318,9 @@ transporte (`p1a_1` … `p1a_22`), dos de percepción del transporte público
 modelo vial se emplea `clean_enmt_vial.csv` (806 casos completos en los
 reactivos de infraestructura) y su variante `clean_enmt_vial_alt.csv` (860
 casos), que sustituye el indicador de puentes peatonales por el de señalamientos.
+El cuarto modelo vuelve al archivo original de 698 columnas, porque la batería de
+calificación por aspecto y por modo (`p1c_*`) que necesita quedó fuera de ese
+extracto de 33 variables.
 
 **Herramientas.** R [@rcore2024] con el paquete `bnlearn` 5.1 [@scutari2010]
 para el ajuste, las pruebas y la inferencia; `Rgraphviz` para la visualización de
@@ -327,7 +340,7 @@ library(bnlearn)
 
 ### Procedimiento
 
-El análisis sigue seis etapas, aplicadas de forma paralela a los tres modelos:
+El análisis sigue seis etapas, aplicadas de forma paralela a los cuatro modelos:
 
 1. **Construcción de variables.** Recodificar los reactivos crudos a factores,
    tratar los códigos de no respuesta como `NA` y, cuando la pregunta de
@@ -547,6 +560,87 @@ concentra los dos niveles modales de la distribución (`4` y `5`, con 184 y 159
 casos); es el precio inevitable de discretizar una variable ordinal gruesa, y
 conviene tenerlo presente al leer las probabilidades conjuntas, que están
 ponderadas por el tamaño de cada cuartil.
+
+### Construcción de las variables — comodidad del transporte público
+
+El cuarto modelo necesita una batería que **no está** en el extracto de 33
+columnas: la pregunta `1c`, *"¿Cómo calificaría los siguientes aspectos de los
+medios de transporte que utiliza cotidianamente?"*, que pide una calificación de
+0 a 10 para ocho aspectos —rapidez, seguridad, comodidad, tiempo de espera,
+cobertura, costo, condiciones de la unidad y limpieza— **por cada uno de los 22
+medios**. Las variables se llaman `p1c_<modo>_<aspecto>`, de modo que la
+comodidad del modo $i$ es `p1c_i_3` y su seguridad `p1c_i_2`. Se lee entonces el
+archivo original.
+
+```{r}
+raw = read.csv("data/enmt_unam.csv", fileEncoding = "latin1")
+```
+
+La batería solo tiene sentido para los medios que la persona efectivamente usa a
+diario: quien nunca se sube al tren no califica el tren. Se construye por tanto
+una máscara de "modo público de uso cotidiano" con los mismos siete modos que
+alimentan `uso_tp`, y se promedian las calificaciones **únicamente sobre esos
+modos**. Los códigos 97, 98 y 99 son no respuesta, igual que en la batería de
+infraestructura vial.
+
+```{r}
+modos = 1:7
+frec = as.matrix(raw[, paste0("p1a_", modos)])
+frec[frec >= 8] = NA
+diario = (frec == 1) & !is.na(frec)          # modos públicos de uso cotidiano
+
+califica = function(bloque) {
+  m = as.matrix(raw[, bloque])
+  m[m < 0 | m > 10] = NA                     # 97 = NA, 98 = NS, 99 = NC
+  m[!diario] = NA                            # solo los modos que sí usa
+  p = suppressWarnings(rowMeans(m, na.rm = TRUE))
+  p[is.nan(p)] = NA                          # no usa ningún modo público
+  p
+}
+
+com_p = califica(paste0("p1c_", modos, "_3"))   # comodidad
+seg_p = califica(paste0("p1c_", modos, "_2"))   # seguridad
+```
+
+#### Elección del punto de corte
+
+Ambas calificaciones se dicotomizan, como en el modelo 2. El umbral **no** es el
+6 que usa el bloque vial, sino el 7, y la razón es la distribución: con 6 el
+76.1 % de la muestra caería del lado "buena" y el 78.3 % del lado "seguro". Ese
+es exactamente el problema que arruina a `NOR` en el modelo 2 —una variable en la
+que casi todos contestan igual no puede discriminar entre grupos—. Con 7 los
+cortes quedan en 57.4 % y 61.0 %, lo bastante balanceados para que las CPTs
+condicionadas tengan casos en las cuatro celdas.
+
+`LOC` y `EDAD` se definen con la misma convención que en el modelo 2, para que
+ambos sean comparables: `LOC` es grande a partir de 100 000 habitantes, y `EDAD`
+agrupa en joven (15–34), adulto (35–54) y mayor (55 o más).
+
+```{r}
+edades = c("2" = "joven",  "3" = "joven",
+           "4" = "adulto", "5" = "adulto",
+           "6" = "mayor",  "7" = "mayor")
+
+data_mateo = data.frame(
+  LOC  = factor(ifelse(raw$Tam_loc == 1, "grande", "chica"),
+                levels = c("grande", "chica")),
+  EDAD = factor(edades[as.character(raw$edad_1)],
+                levels = c("joven", "adulto", "mayor")),
+  SEXO = factor(raw$sexo, levels = 1:2, labels = c("hombre", "mujer")),
+  SEG  = factor(ifelse(seg_p >= 7, "seguro", "inseguro"),
+                levels = c("seguro", "inseguro")),
+  COM  = factor(ifelse(com_p >= 7, "buena", "mala"),
+                levels = c("buena", "mala")))
+
+data_mateo = na.omit(data_mateo)
+nrow(data_mateo)
+summary(data_mateo)
+```
+
+Quedan 641 personas: las que usan al menos un medio público cotidianamente y
+calificaron su comodidad y su seguridad. Es un universo distinto al de los otros
+tres modelos —por construcción, aquí solo hay usuarios cotidianos del transporte
+público—, y esa restricción es parte de la pregunta, no una pérdida de datos.
 
 ## Aplicación
 
@@ -1270,9 +1364,246 @@ observada. El `cpquery` no aporta aquí precisión adicional, pero sí verifica 
 el muestreo esté funcionando —lo que da confianza en las consultas de los
 modelos 1 y 2, donde sí hay nodos intermedios y el conteo directo no es viable.
 
+### Modelo 4 — Sexo y calificación de comodidad del transporte público
+
+> **Q4.** ¿Existen diferencias entre hombres y mujeres en la calificación de
+> comodidad del transporte público que usan cotidianamente?
+
+La pregunta tiene una carga sustantiva evidente: la experiencia del transporte
+público está documentadamente diferenciada por género, sobre todo en lo que toca
+a acoso y sensación de inseguridad. La hipótesis **H4** es que esa diferencia se
+refleje en la calificación de comodidad, controlando por localidad, edad y
+seguridad percibida.
+
+#### Especificación de la DAG
+
+```{r}
+dag_mateo = empty.graph(nodes = c("LOC", "EDAD", "SEXO", "SEG", "COM"))
+```
+
+La estructura coloca a `COM` como sumidero con cuatro padres y a `SEG` como
+mediador: `LOC` y `EDAD` influyen sobre la seguridad percibida, y esta a su vez
+sobre la comodidad, además del efecto directo de las tres. `SEXO` entra solo
+hacia `COM`, porque no tiene sentido que el sexo dependa de la localidad ni de la
+edad.
+
+```{r}
+arc_set_mateo = matrix(c("LOC",  "SEG",
+                         "EDAD", "SEG",
+                         "LOC",  "COM",
+                         "EDAD", "COM",
+                         "SEXO", "COM",
+                         "SEG",  "COM"),
+                       byrow = TRUE, ncol = 2,
+                       dimnames = list(NULL, c("from", "to")))
+```
+
+```{r}
+arcs(dag_mateo) = arc_set_mateo
+dag_mateo
+```
+
+```{r}
+graphviz.plot(dag_mateo, shape = "ellipse")
+```
+
+#### Ajuste de los parámetros
+
+```{r}
+bn_mle_mateo = bn.fit(dag_mateo, data = data_mateo, method = "mle")
+```
+
+```{r}
+bn_mle_mateo$COM
+```
+
+El cruce directo ya adelanta la magnitud de la diferencia:
+
+```{r}
+table(data_mateo$SEXO, data_mateo$COM)
+prop.table(table(data_mateo$SEXO, data_mateo$COM), margin = 1)
+```
+
+196 de 352 hombres califican la comodidad como buena (55.7 %) y 172 de 289
+mujeres (59.5 %). Son **menos de cuatro puntos porcentuales**, y en la dirección
+contraria a la que anticipaba H4: son las mujeres quienes califican mejor.
+
+#### Significancia de las relaciones de dependencia
+
+```{r}
+ci.test("COM", "SEXO", c("LOC", "EDAD", "SEG"), test = "mi", data = data_mateo)
+```
+
+```{r}
+ci.test("COM", "SEG", c("LOC", "EDAD", "SEXO"), test = "mi", data = data_mateo)
+```
+
+```{r}
+ci.test("COM", "LOC", c("EDAD", "SEXO", "SEG"), test = "mi", data = data_mateo)
+```
+
+```{r}
+ci.test("COM", "EDAD", c("LOC", "SEXO", "SEG"), test = "mi", data = data_mateo)
+```
+
+```{r}
+arc.strength(dag_mateo, data = data_mateo, criterion = "mi")
+```
+
+El contraste entre los cuatro arcos es el más nítido de todo el trabajo.
+`SEG → COM` es abrumadoramente significativo ($mi = 184.8$, $p < 2.2\times10^{-16}$),
+mientras que `SEXO → COM` no lo es ($mi = 15.0$, $\mathrm{df} = 12$, $p = 0.240$),
+ni tampoco `LOC` ($p = 0.095$) ni `EDAD` ($p = 0.218$). La `arc.strength` lo
+confirma: la del arco `SEG → COM` es del orden de $10^{-33}$ frente a $0.24$ del
+arco de sexo. Dicho de otra forma, **quien determina si el viaje se califica como
+cómodo es la sensación de seguridad, no el sexo de quien viaja.**
+
+##### Revisión con otro indicador
+
+Antes de aceptar la respuesta negativa conviene comprobar que no dependa del
+reactivo elegido, como ocurrió en el modelo 2 con los puentes peatonales. Se
+repite todo sustituyendo la comodidad por *condiciones de la unidad*
+(`p1c_i_7`), el aspecto más cercano dentro de la misma batería.
+
+```{r}
+alt_p = califica(paste0("p1c_", modos, "_7"))   # condiciones de la unidad
+
+data_mateo_alt = data.frame(
+  LOC  = factor(ifelse(raw$Tam_loc == 1, "grande", "chica"),
+                levels = c("grande", "chica")),
+  EDAD = factor(edades[as.character(raw$edad_1)],
+                levels = c("joven", "adulto", "mayor")),
+  SEXO = factor(raw$sexo, levels = 1:2, labels = c("hombre", "mujer")),
+  SEG  = factor(ifelse(seg_p >= 7, "seguro", "inseguro"),
+                levels = c("seguro", "inseguro")),
+  COM  = factor(ifelse(alt_p >= 7, "buena", "mala"),
+                levels = c("buena", "mala")))
+data_mateo_alt = na.omit(data_mateo_alt)
+
+table(data_mateo_alt$SEXO, data_mateo_alt$COM)
+```
+
+```{r}
+ci.test("COM", "SEXO", c("LOC", "EDAD", "SEG"), test = "mi", data = data_mateo_alt)
+```
+
+Con el indicador alternativo la brecha se mantiene en la misma dirección y del
+mismo tamaño (57.7 % de los hombres contra 63.7 % de las mujeres) y sigue sin ser
+significativa ($p = 0.467$). A diferencia del modelo 2, aquí el cambio de
+reactivo **no** altera la conclusión, lo que la vuelve considerablemente más
+sólida.
+
+#### Comparación de estructuras
+
+```{r}
+score(dag_mateo, data = data_mateo, type = "bic")
+score(dag_mateo, data = data_mateo, type = "aic")
+```
+
+```{r}
+best_dag_mateo = hc(data_mateo)
+modelstring(best_dag_mateo)
+```
+
+```{r}
+score(best_dag_mateo, data = data_mateo, type = "bic")
+score(best_dag_mateo, data = data_mateo, type = "aic")
+```
+
+```{r}
+graphviz.plot(best_dag_mateo, shape = "ellipse")
+```
+
+Aquí ocurre algo que no había pasado en los tres modelos anteriores: el
+*hill-climbing* **conserva un arco hacia la variable respuesta**. La red aprendida
+es `[LOC][EDAD][SEXO][SEG][COM|SEG]`, es decir, tira `LOC`, `EDAD` y `SEXO` pero
+mantiene `SEG → COM`. Y los dos criterios coinciden por primera vez en el
+trabajo: BIC mejora de $-2\,407.9$ a $-2\,336.5$ y AIC de $-2\,332.0$ a
+$-2\,320.9$. Score y prueba de hipótesis dicen exactamente lo mismo, lo cual es
+la mejor situación posible: la dependencia que existe es fuerte, y las que no
+existen se descartan sin ambigüedad.
+
+#### Respuesta a Q4
+
+```{r}
+set.seed(42)
+cpquery(bn_mle_mateo, event = (COM == "buena"),
+        evidence = (SEXO == "hombre"), n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle_mateo, event = (COM == "buena"),
+        evidence = (SEXO == "mujer"), n = 10^6)
+```
+
+Separando además por seguridad percibida, para ver si la brecha se abre en algún
+subgrupo:
+
+```{r}
+set.seed(42)
+cpquery(bn_mle_mateo, event = (COM == "buena"),
+        evidence = (SEXO == "hombre") & (SEG == "seguro"), n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle_mateo, event = (COM == "buena"),
+        evidence = (SEXO == "mujer") & (SEG == "seguro"), n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle_mateo, event = (COM == "buena"),
+        evidence = (SEXO == "hombre") & (SEG == "inseguro"), n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle_mateo, event = (COM == "buena"),
+        evidence = (SEXO == "mujer") & (SEG == "inseguro"), n = 10^6)
+```
+
+Y sobre la red aprendida, en la que `SEXO` ya no es padre de `COM`:
+
+```{r}
+bn_mateo = bn.fit(best_dag_mateo, data = data_mateo)
+
+set.seed(42)
+cpquery(bn_mateo, event = (COM == "buena"),
+        evidence = (SEXO == "hombre"), n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mateo, event = (COM == "buena"),
+        evidence = (SEXO == "mujer"), n = 10^6)
+```
+
+| Evidencia | Hombres | Mujeres | Brecha |
+|---|---|---|---|
+| Sin condicionar (DAG propuesta) | 0.551 | 0.605 | 5.4 pp |
+| Perciben el transporte seguro | 0.752 | 0.810 | 5.8 pp |
+| Lo perciben inseguro | 0.240 | 0.283 | 4.3 pp |
+| Sin condicionar (DAG aprendida) | 0.574 | 0.574 | 0.0 pp |
+
+**Casi no hay diferencia, y la que hay no es significativa.** La brecha ronda los
+cinco puntos porcentuales y es notablemente estable: se mantiene igual entre
+quienes se sienten seguros y entre quienes se sienten inseguros, lo que descarta
+que exista un subgrupo donde el efecto se concentre. Sobre la red aprendida
+—donde `SEXO` no es padre de `COM`— la diferencia desaparece por completo
+(0.5739 contra 0.5738), que es lo que debe ocurrir y sirve como verificación del
+muestreo.
+
+Lo que sí domina es la seguridad percibida: pasar de "inseguro" a "seguro" mueve
+la probabilidad de calificar bien la comodidad de 0.24 a 0.75, más de **cincuenta
+puntos porcentuales**, contra los cinco del sexo. La diferencia de género existe
+en la muestra, pero es un orden de magnitud menor que el factor que realmente
+explica la calificación.
+
 ### Discusión
 
-Los tres modelos convergen en un mismo patrón: **la percepción subjetiva de la
+Los cuatro modelos convergen en un mismo patrón: **la percepción subjetiva de la
 calidad de un servicio o de una infraestructura es un predictor mucho más débil
 de la conducta declarada que las variables estructurales de disponibilidad y
 posición socioeconómica.** En el modelo 1 la percepción de eficiencia y seguridad
@@ -1285,12 +1616,18 @@ estructural —el cuartil de ingreso, que determina la capacidad de comprar y
 mantener un automóvil—, la señal aparece limpia, monótona y significativa
 ($p = 8.4\times10^{-5}$), sobre la misma encuesta y con menos observaciones (921).
 No es entonces que la ENMT carezca de potencia: es que la percepción predice
-poco.
+poco. El modelo 4 matiza esa lectura de forma importante: ahí la percepción —la
+seguridad sentida— **sí** es el factor dominante, y mueve la calificación de
+comodidad más de cincuenta puntos porcentuales. La distinción relevante no es
+entonces "percepción contra estructura", sino qué predice qué: la percepción
+explica bien **otras percepciones** (seguridad → comodidad), pero no la
+**conducta** declarada (uso del transporte, cumplimiento de normas), que responde
+a la disponibilidad y a la posición socioeconómica.
 
-También convergen en una advertencia metodológica. En los tres casos el
+También convergen en una advertencia metodológica. En los tres primeros casos el
 *hill-climbing* con BIC produce una red que gana en ese score y que, sin
-embargo, es sustantivamente vacía respecto de la pregunta de investigación: en
-los tres modelos la variable respuesta queda sin padres. Las causas difieren —en
+embargo, es sustantivamente vacía respecto de la pregunta de investigación: la
+variable respuesta queda sin padres. Las causas difieren —en
 el modelo 1 domina la penalización frente a nodos de alta cardinalidad
 (`estrato` con 16 niveles, `h21_1` con 18); en el modelo 2, con solo cinco nodos
 de baja cardinalidad, la causa es la ausencia genuina de señal, confirmada de
@@ -1299,13 +1636,23 @@ modelo 3 el veredicto depende del criterio, porque BIC prefiere la red aprendida
 y AIC la propuesta. La lección es que el score y la prueba de hipótesis responden
 preguntas distintas, y que reportar solo el resultado del aprendizaje automático
 de estructura habría ocultado, en los modelos 1 y 3, dependencias que sí existen
-y que las pruebas detectan con $p \approx 10^{-5}$.
+y que las pruebas detectan con $p \approx 10^{-5}$. El modelo 4 es la excepción
+que confirma el diagnóstico: es el único donde el *hill-climbing* conserva un arco
+hacia la respuesta (`SEG → COM`) y donde BIC, AIC y las pruebas de independencia
+coinciden sin ambigüedad. La diferencia no está en el método sino en la fuerza de
+la señal: cuando una dependencia es de $mi = 184.8$ en lugar de $mi = 20$, ningún
+criterio de penalización la descarta.
 
-Un tercer hallazgo es la sensibilidad al reactivo. Cambiar puentes peatonales por
-señalamientos viales convierte un arco no significativo ($p = 0.092$) en uno
-significativo ($p = 0.0097$) sobre la misma pregunta sustantiva. Esto acota
-fuertemente el alcance de la respuesta negativa a Q2: lo que no se detecta es el
-efecto de *esos* indicadores, no el de la infraestructura vial en general.
+Un tercer hallazgo es la sensibilidad al reactivo, y su contraparte. Cambiar
+puentes peatonales por señalamientos viales convierte un arco no significativo
+($p = 0.092$) en uno significativo ($p = 0.0097$) sobre la misma pregunta
+sustantiva, lo que acota fuertemente el alcance de la respuesta negativa a Q2: lo
+que no se detecta es el efecto de *esos* indicadores, no el de la infraestructura
+vial en general. En el modelo 4 se hizo la misma comprobación —comodidad
+sustituida por condiciones de la unidad— y la conclusión **no** cambió
+($p = 0.467$), de modo que ahí la respuesta negativa sí puede sostenerse con
+confianza. La lección práctica es que una no significancia solo es informativa
+después de haberla sometido a este tipo de prueba.
 
 ## Conclusiones
 
@@ -1341,6 +1688,18 @@ propuestos hacia la variable respuesta resultan significativos
 localidad), aunque BIC y AIC discrepan sobre si la estructura completa se
 justifica.
 
+**Sobre Q4.** No se encuentra una diferencia significativa entre hombres y
+mujeres en la calificación de comodidad del transporte público de uso cotidiano:
+**0.551** frente a **0.605**, cinco puntos porcentuales, con $p = 0.240$. La
+brecha es estable en los dos subgrupos de seguridad percibida (5.8 puntos entre
+quienes se sienten seguros, 4.3 entre quienes no), se mantiene al sustituir el
+indicador por condiciones de la unidad ($p = 0.467$) y desaparece sobre la red
+aprendida, que descarta el arco. Lo que sí determina la calificación es la
+seguridad percibida, que mueve la probabilidad de **0.240** a **0.752**: un
+efecto diez veces mayor que el del sexo. Es también el único de los cuatro
+modelos en que el *hill-climbing* conserva un arco hacia la variable respuesta y
+en que BIC y AIC coinciden con las pruebas de independencia.
+
 **Implicaciones.** Para el diseño de política, ambos resultados apuntan en la
 misma dirección: las intervenciones sobre la percepción (campañas de imagen,
 mejoras cosméticas) tienen un efecto esperado pequeño frente a las intervenciones
@@ -1358,9 +1717,12 @@ comparación de BIC.
 2. *Tamaño de muestra frente a cardinalidad.* Con 1 190 casos y nodos de hasta 18
    niveles, varias CPTs tienen celdas vacías. Esto obliga al suavizado bayesiano
    y penaliza a la DAG propuesta en el score.
-3. *Datasets no comparables.* Los tres modelos se ajustan sobre subconjuntos
-   distintos de la ENMT (1 190, 806 y 921 casos), por lo que sus scores no son
-   comparables entre sí y no pueden integrarse en una sola red.
+3. *Datasets no comparables.* Los cuatro modelos se ajustan sobre subconjuntos
+   distintos de la ENMT (1 190, 806, 921 y 641 casos), por lo que sus scores no
+   son comparables entre sí y no pueden integrarse en una sola red. El del
+   modelo 4 es además un universo restringido por construcción —solo usuarios
+   cotidianos del transporte público—, de modo que sus resultados no se
+   extrapolan a la población general.
 4. *Ausencia de identificación causal.* Los arcos representan dependencias
    probabilísticas orientadas por conocimiento del dominio; los datos son
    observacionales y transversales, de modo que las direcciones no están
