@@ -1,0 +1,6 @@
+variable,nivel,origen,significado
+LOC,grande / chica,Tam_loc,Tamaño de la localidad; grande es 100 mil habitantes o más
+EDAD,joven / adulto / mayor,edad_1,Grupo de edad; joven 15-34, adulto 35-54, mayor 55 o más
+PAV,bueno / malo,p18_1 y p18_2,Estado de conservación de las calles de la colonia y de la ciudad; bueno es promedio de 6 o más
+ACE,bueno / malo,p18_8,Estado de conservación de los puentes peatonales; bueno es 6 o más
+NOR,alto / bajo,p31,Qué tanto declara la persona que cumple las reglas de tránsito; alto es 8 o más
