@@ -3,7 +3,7 @@ title: "query_emi"
 format: 
     html:
         toc: true
-        hmtl-math-method: katex
+        html-math-method: katex
         embed-resources: true
         df-print: kable
 editor: source
@@ -58,6 +58,7 @@ arc_set_q = matrix(c("Tam_loc",  "ing_fam_q",
 arcs(dag_q) = arc_set_q
 graphviz.plot(dag_q, shape = "ellipse")
 
+bn_q = bn.fit(dag_q, data = data, method = "bayes")
 ```
 ```{r}
 # --- 5. La consulta: P(ing_fam_q = Qi, p1a_12 = "Cotidiano" | Tam_loc = t) ---

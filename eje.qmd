@@ -135,51 +135,19 @@ references:
 
 Este trabajo modela con **redes bayesianas multinomiales** cuatro preguntas de
 movilidad urbana sobre la Encuesta Nacional de Movilidad y Transporte (ENMT) del
-IIJ-UNAM: (i) qué tan probable es que una persona de ingresos altos en una
-localidad grande use cotidianamente el transporte público cuando lo percibe
-eficiente y seguro, (ii) si el estado percibido de la infraestructura vial se
-asocia con el cumplimiento declarado de las normas de tránsito, y (iii) cómo se
-distribuyen conjuntamente el cuartil de ingreso familiar y el uso cotidiano del
-automóvil particular según el tamaño de la localidad, y (iv) si hombres y mujeres
-califican de distinta forma la comodidad del transporte público que usan a
-diario.
+IIJ-UNAM: el uso del transporte público, el cumplimiento declarado de las normas
+de tránsito, el uso del automóvil y la calificación de comodidad según sexo. Cada
+pregunta se responde con una DAG especificada desde el dominio, contrastada con
+pruebas de independencia condicional y comparada contra la estructura que aprende
+*hill-climbing*, en R con el paquete `bnlearn`.
 
-La metodología consta de cinco etapas: construcción de variables categóricas a
-partir de los reactivos crudos —incluida una variable artificial `uso_tp` que
-colapsa los siete modos de transporte público en una sola escala ordinal—,
-especificación de cuatro DAGs por conocimiento del dominio, estimación de las
-tablas de probabilidad condicional con `bn.fit()`, validación de los arcos con
-pruebas de independencia condicional (`ci.test`) y comparación contra la
-estructura aprendida automáticamente por *hill-climbing* (`hc`), y finalmente
-inferencia probabilística con `cpquery()` por ponderación de verosimilitud.
-Todo se implementa en R con el paquete `bnlearn` sobre 1 190 casos para el
-modelo de transporte público, 806 para el de infraestructura vial, 921 para el de
-ingreso y automóvil y 641 para el de comodidad.
-
-Los resultados principales son: (1) $P(\text{uso cotidiano} \mid \text{ingreso
-alto}, \text{localidad grande}, \text{eficiente}, \text{seguro}) \approx 0.59$,
-que sube a $0.82$ si se admite también el uso ocasional, y que cae únicamente a
-$0.55$ cuando el transporte se percibe ineficiente e inseguro —una diferencia de
-apenas cuatro puntos porcentuales—; la estimación coincide con la frecuencia
-muestral directa ($37/61 = 0.61$). (2) La diferencia en el cumplimiento
-declarado entre quienes califican bien y mal su infraestructura es de tres
-puntos ($0.72$ frente a $0.70$) y no resulta significativa ($p = 0.060$ para
-pavimento, $p = 0.092$ para puentes peatonales); al sustituir el indicador de
-puentes por el de señalamientos viales sí aparece asociación ($p = 0.0097$).
-(3) El uso cotidiano del automóvil crece de forma monótona con el cuartil de
-ingreso ($0.13$, $0.17$, $0.23$ y $0.34$) y se concentra en las localidades
-grandes ($0.24$ y $0.26$ frente a $0.14$ y $0.18$); es el único de los tres
-modelos en el que todos los arcos propuestos superan la prueba de independencia
-condicional. (4) La brecha de género en la calificación de comodidad es de
-cinco puntos porcentuales ($0.55$ en hombres frente a $0.60$ en mujeres) y no es
-significativa ($p = 0.240$), mientras que la seguridad percibida mueve esa misma
-probabilidad más de cincuenta puntos ($0.24$ frente a $0.75$).
-
-Se concluye que, en localidades grandes, la **disponibilidad** de la red importa
-más que su valoración subjetiva para explicar el uso cotidiano del transporte
-público, y que el cumplimiento autodeclarado de las normas es un indicador poco
-discriminante —el 69 % de la muestra se ubica en la categoría alta—, lo que
-limita cualquier inferencia causal sobre él.
+El hallazgo central es que la percepción subjetiva predice mal la conducta
+declarada y bien otras percepciones. La valoración del transporte público mueve
+su uso cotidiano cuatro puntos porcentuales y el estado de la infraestructura
+mueve el cumplimiento de normas tres puntos, ninguno significativo. La seguridad
+sentida, en cambio, mueve la calificación de comodidad más de cincuenta puntos.
+En ciudades grandes pesa más la disponibilidad de la red que su calidad
+percibida.
 
 ## Introducción
 
@@ -188,15 +156,15 @@ limita cualquier inferencia causal sobre él.
 La movilidad urbana en México es un problema de política pública de primer
 orden: el reparto modal entre transporte público y automóvil particular
 determina emisiones, congestión, tiempo de traslado y acceso al empleo. Las
-decisiones de política —invertir en una línea de BRT, endurecer la vigilancia de
-las normas de tránsito, repavimentar— se toman con supuestos implícitos sobre
+decisiones de política (invertir en una línea de BRT, endurecer la vigilancia de
+las normas de tránsito, repavimentar) se toman con supuestos implícitos sobre
 qué mueve la conducta de las personas: se asume, por ejemplo, que mejorar la
 percepción de calidad del servicio incrementará su uso, o que una vía en buen
 estado induce mayor respeto a las reglas.
 
-Estos supuestos son afirmaciones *condicionales* —"si mejora X, entonces cambia
-Y dado Z"— y por lo tanto son verificables con datos de encuesta. El problema es
-que las variables involucradas son categóricas, están fuertemente
+Estos supuestos son afirmaciones *condicionales* del tipo "si mejora X, entonces
+cambia Y dado Z", y por lo tanto son verificables con datos de encuesta. El
+problema es que las variables involucradas son categóricas, están fuertemente
 interrelacionadas y ninguna de ellas es manipulable experimentalmente: no se
 puede asignar aleatoriamente a una persona un ingreso alto o una ciudad grande.
 Se requiere entonces un formalismo que represente explícitamente la estructura de
@@ -220,8 +188,8 @@ metodológica de este trabajo es @scutari2021, y la implementación es el paquet
 `bnlearn` [@scutari2010], que reúne en una misma interfaz el ajuste de
 parámetros, el aprendizaje de estructura y la inferencia aproximada.
 
-En el ámbito nacional, el análisis de encuestas de movilidad —como la Encuesta
-Origen-Destino de la ZMVM [@inegi2017]— se ha apoyado tradicionalmente en
+En el ámbito nacional, el análisis de encuestas de movilidad (como la Encuesta
+Origen-Destino de la ZMVM [@inegi2017]) se ha apoyado tradicionalmente en
 tabulados cruzados y modelos de elección discreta. El uso de redes bayesianas
 aporta sobre esos enfoques la posibilidad de distinguir dependencias *directas*
 de dependencias *mediadas*: si el tamaño de la localidad influye en el uso del
@@ -264,19 +232,18 @@ Las hipótesis de trabajo asociadas son:
 - **H4.** La calificación de comodidad del transporte público difiere entre
   hombres y mujeres, controlando por localidad, edad y seguridad percibida.
 
-Ambas hipótesis se someten a prueba dos veces: como restricciones estructurales
-sujetas a `ci.test`, y como estructuras completas comparadas contra la DAG que
-un algoritmo de búsqueda encuentra sin supervisión.
+Las cuatro hipótesis se someten a prueba dos veces. Primero como restricciones
+estructurales sujetas a `ci.test`. Después como estructuras completas comparadas
+contra la DAG que un algoritmo de búsqueda encuentra sin supervisión.
 
 ### Importancia
 
-El valor del ejercicio no está solo en los números que arroja, sino en el
-contraste entre el modelo que un analista propone desde el dominio y el que los
-datos sostienen por sí solos. Como se verá, en ambos casos el algoritmo de
-aprendizaje de estructura elimina precisamente los arcos que motivaron el
-estudio, y entender **por qué** —penalización por complejidad frente a variables
-de alta cardinalidad, sesgo de deseabilidad social en los reactivos
-autodeclarados— es tan informativo como la probabilidad estimada.
+El ejercicio contrasta el modelo que un analista propone desde el dominio con el
+que los datos sostienen por sí solos. En tres de los cuatro modelos el algoritmo
+de aprendizaje de estructura elimina precisamente los arcos que motivaron el
+estudio. Entender **por qué** es tan informativo como la probabilidad estimada, y
+las razones son dos: la penalización por complejidad frente a variables de alta
+cardinalidad y el sesgo de deseabilidad social en los reactivos autodeclarados.
 
 ## Metodología
 
@@ -295,11 +262,11 @@ multinomial cada factor $P(X_i \mid \mathrm{pa}(X_i))$ es una tabla de
 probabilidad condicional (CPT) con
 $(|X_i| - 1)\prod_{j \in \mathrm{pa}(i)} |X_j|$ parámetros libres. De ahí una
 restricción práctica que gobierna todo el diseño: **el tamaño de una CPT crece
-multiplicativamente con el número y la cardinalidad de los padres**, de modo que
-un nodo con tres padres de 8, 2 y 2 niveles ya requiere 96 parámetros, y con
-1 190 observaciones muchas celdas quedan vacías. Toda decisión de modelado
-—colapsar los siete modos de transporte en una variable, no agregar un arco
-directo de más— responde a este límite.
+multiplicativamente con el número y la cardinalidad de los padres**. Un nodo con
+tres padres de 8, 2 y 2 niveles ya requiere 96 parámetros, y con 1 190
+observaciones muchas celdas quedan vacías. Toda decisión de modelado responde a
+este límite: colapsar los siete modos de transporte en una variable, no agregar
+un arco directo de más.
 
 La ausencia de un arco $X \to Y$ es una afirmación de independencia condicional,
 $X \perp\!\!\!\perp Y \mid \mathrm{pa}(Y)$, y es contrastable: es exactamente la
@@ -358,21 +325,21 @@ El análisis sigue seis etapas, aplicadas de forma paralela a los cuatro modelos
    interés, con $H_0$: los dos primeros argumentos son independientes dado el
    condicionante. Se usan tres estadísticos como verificación cruzada:
    información mutua (`mi`, razón de verosimilitudes), ji-cuadrada de Pearson
-   (`x2`) —asintóticamente equivalentes— y su versión por permutaciones
-   (`mc-x2`), que no depende de la aproximación asintótica y por tanto es la
+   (`x2`), asintóticamente equivalentes, y su versión por permutaciones
+   (`mc-x2`), que no depende de la aproximación asintótica y es por tanto la
    referencia cuando las tablas son ralas. Complementariamente, `arc.strength()`
    cuantifica la contribución de cada arco.
 5. **Comparación de estructuras.** Se calculan los scores BIC [@schwarz1978] y
    AIC [@akaike1974] de la DAG propuesta y se contrastan contra la estructura
    aprendida por *hill-climbing* (`hc()`), una búsqueda voraz que parte del grafo
    vacío y agrega, quita o invierte arcos mientras el score mejore. La
-   comparación es informativa en ambos sentidos: si la red aprendida gana por
-   mucho, la estructura propuesta está sobreparametrizada; si la red aprendida
-   resulta sustantivamente vacía, el criterio de penalización está dominando
+   comparación es informativa en ambos sentidos. Si la red aprendida gana por
+   mucho, la estructura propuesta está sobreparametrizada. Si la red aprendida se
+   queda sin arcos hacia la variable de interés, la penalización está dominando
    sobre la señal.
 6. **Inferencia y validación.** `cpquery()` responde las preguntas por muestreo.
    Cuando la evidencia es rara, el muestreo por rechazo descarta casi todas las
-   simulaciones, de modo que se emplea `method = "lw"` (*likelihood weighting*,
+   simulaciones. Por eso se emplea `method = "lw"` (*likelihood weighting*,
    @fung1990), que fija la evidencia y pondera cada muestra por su
    verosimilitud. Finalmente, cada probabilidad estimada por la red se contrasta
    contra la frecuencia relativa observada en el subconjunto de la muestra que
@@ -400,14 +367,14 @@ Las variables que intervienen en el primer modelo son:
 | `ing_fam` | Ingreso familiar                     |
 | `p17_1`   | Eficiencia del transporte público (1 = eficiente) |
 | `p17_4`   | Seguridad del transporte público (1 = seguro) |
-| `uso_tp`  | **[artificial]** Uso de transporte público (ver abajo) |
+| `uso_tp`  | **[derivada]** Uso de transporte público (ver abajo) |
 
 ```{r}
 data = read.csv("data/clean_enmt_unam.csv", stringsAsFactors = TRUE)
 head(data)
 ```
 
-#### La variable artificial `uso_tp`
+#### La variable derivada `uso_tp`
 
 La pregunta Q1 —*¿qué tan probable es que alguien se mueva en transporte
 público?*— no tiene una sola columna que la conteste. La ENMT registra la
@@ -491,10 +458,9 @@ head(data_pablo)
 summary(data_pablo)
 ```
 
-Conviene fijarse desde ahora en el desbalance de `NOR`: 554 de 806 personas
-(69 %) se ubican en la categoría alta. Es el primer indicio de que el reactivo
-mide autoimagen más que conducta, y condiciona todo lo que sigue en el segundo
-modelo.
+`NOR` está muy desbalanceada: 554 de 806 personas (69 %) se ubican en la
+categoría alta. Es un indicio de que el reactivo mide autoimagen más que
+conducta.
 
 ### Construcción de las variables — ingreso y automóvil
 
@@ -527,9 +493,9 @@ nrow(data_emi)
 `ing_fam` es ordinal con siete niveles válidos, así que **no admite un corte
 exacto en cuartiles**: todos los casos de un mismo nivel comparten rango y tienen
 que caer en el mismo grupo. La regla que se aplica es la convención estándar para
-empates —cada nivel se asigna al cuartil donde cae la mayoría de sus rangos—, lo
-que equivale a partir por la frecuencia acumulada en los puntos más cercanos a
-25 %, 50 % y 75 %:
+empates: cada nivel se asigna al cuartil donde cae la mayoría de sus rangos.
+Equivale a partir por la frecuencia acumulada en los puntos más cercanos a 25 %,
+50 % y 75 %:
 
 | Nivel `ing_fam` | Rango de ingreso | Acumulado | Cuartil |
 |---|---|---|---|
@@ -557,20 +523,19 @@ prop.table(table(data_emi$ing_q))
 
 Los grupos quedan en 17.8 % / 37.0 % / 20.0 % / 25.2 %. `Q2` sale abultado porque
 concentra los dos niveles modales de la distribución (`4` y `5`, con 184 y 159
-casos); es el precio inevitable de discretizar una variable ordinal gruesa, y
-conviene tenerlo presente al leer las probabilidades conjuntas, que están
-ponderadas por el tamaño de cada cuartil.
+casos). Es el precio de discretizar una variable ordinal gruesa. Conviene tenerlo
+presente al leer las probabilidades conjuntas, que están ponderadas por el tamaño
+de cada cuartil.
 
 ### Construcción de las variables — comodidad del transporte público
 
 El cuarto modelo necesita una batería que **no está** en el extracto de 33
 columnas: la pregunta `1c`, *"¿Cómo calificaría los siguientes aspectos de los
 medios de transporte que utiliza cotidianamente?"*, que pide una calificación de
-0 a 10 para ocho aspectos —rapidez, seguridad, comodidad, tiempo de espera,
-cobertura, costo, condiciones de la unidad y limpieza— **por cada uno de los 22
-medios**. Las variables se llaman `p1c_<modo>_<aspecto>`, de modo que la
-comodidad del modo $i$ es `p1c_i_3` y su seguridad `p1c_i_2`. Se lee entonces el
-archivo original.
+0 a 10 para ocho aspectos (rapidez, seguridad, comodidad, tiempo de espera,
+cobertura, costo, condiciones de la unidad y limpieza) **por cada uno de los 22
+medios**. Las variables se llaman `p1c_<modo>_<aspecto>`: la comodidad del modo
+$i$ es `p1c_i_3` y su seguridad `p1c_i_2`. Se lee entonces el archivo original.
 
 ```{r}
 raw = read.csv("data/enmt_unam.csv", fileEncoding = "latin1")
@@ -606,11 +571,11 @@ seg_p = califica(paste0("p1c_", modos, "_2"))   # seguridad
 
 Ambas calificaciones se dicotomizan, como en el modelo 2. El umbral **no** es el
 6 que usa el bloque vial, sino el 7, y la razón es la distribución: con 6 el
-76.1 % de la muestra caería del lado "buena" y el 78.3 % del lado "seguro". Ese
-es exactamente el problema que arruina a `NOR` en el modelo 2 —una variable en la
-que casi todos contestan igual no puede discriminar entre grupos—. Con 7 los
-cortes quedan en 57.4 % y 61.0 %, lo bastante balanceados para que las CPTs
-condicionadas tengan casos en las cuatro celdas.
+76.1 % de la muestra caería del lado "buena" y el 78.3 % del lado "seguro". Es el
+mismo problema que arruina a `NOR` en el modelo 2: una variable en la que casi
+todos contestan igual no puede discriminar entre grupos. Con 7 los cortes quedan
+en 57.4 % y 61.0 %, lo bastante balanceados para que las CPTs condicionadas
+tengan casos en las cuatro celdas.
 
 `LOC` y `EDAD` se definen con la misma convención que en el modelo 2, para que
 ambos sean comparables: `LOC` es grande a partir de 100 000 habitantes, y `EDAD`
@@ -639,8 +604,8 @@ summary(data_mateo)
 
 Quedan 641 personas: las que usan al menos un medio público cotidianamente y
 calificaron su comodidad y su seguridad. Es un universo distinto al de los otros
-tres modelos —por construcción, aquí solo hay usuarios cotidianos del transporte
-público—, y esa restricción es parte de la pregunta, no una pérdida de datos.
+tres modelos, porque por construcción solo incluye a usuarios cotidianos del
+transporte público.
 
 ## Aplicación
 
@@ -659,8 +624,8 @@ dag_jf = empty.graph(nodes = c("edad_1", "estrato", "escol", "sexo", "h21_1",
                             "Tam_loc", "ing_fam", "p17_1", "p17_4", "uso_tp"))
 ```
 
-Cada renglón de la matriz es un arco `from → to`; con `byrow = TRUE` se lee como
-una lista de pares. La estructura propuesta, que operacionaliza **H1**, es:
+Cada renglón de la matriz es un arco `from → to`. Con `byrow = TRUE` se lee como
+una lista de pares. La estructura propuesta, que traduce **H1** a arcos, es:
 
 - `edad_1 → escol`, `estrato → escol` — la escolaridad depende de la edad y del
   estrato socioeconómico.
@@ -677,11 +642,11 @@ una lista de pares. La estructura propuesta, que operacionaliza **H1**, es:
 Es decir, los sociodemográficos influyen en el uso del transporte público solo de
 forma **indirecta**, vía ingreso y percepción. En particular `Tam_loc` llega a
 `uso_tp` únicamente por los tres caminos `Tam_loc → ing_fam → uso_tp`,
-`Tam_loc → p17_1 → uso_tp` y `Tam_loc → p17_4 → uso_tp`: se decidió **no** poner
+`Tam_loc → p17_1 → uso_tp` y `Tam_loc → p17_4 → uso_tp`. Se decidió **no** poner
 un arco directo `Tam_loc → uso_tp` para mantener la CPT en tres padres
 ($3 \times 8 \cdot 2 \cdot 2 = 96$ parámetros en vez de 384, que con 1 190 filas
-ya deja celdas huecas). Esta decisión es una hipótesis de mediación, y se
-contrasta explícitamente más adelante.
+ya deja celdas huecas). Esa decisión es una hipótesis de mediación, y se contrasta
+más adelante.
 
 ```{r}
 arc_set = matrix(c("edad_1", "escol",
@@ -740,9 +705,9 @@ la razón por la que la inferencia posterior se hará con `method = "bayes"`.
 
 La prueba central para **H1** es si la ocupación conserva asociación con el uso
 del transporte público una vez controlada la percepción del servicio. Bajo la
-estructura propuesta, `h21_1` influye en `uso_tp` solo a través de `ing_fam`, de
-modo que se espera dependencia marginal —que es lo que la prueba detecta— pero no
-un arco directo.
+estructura propuesta, `h21_1` influye en `uso_tp` solo a través de `ing_fam`. Se
+espera entonces dependencia marginal, que es lo que la prueba detecta, pero no un
+arco directo.
 
 ```{r}
 set.seed(1)
@@ -771,20 +736,18 @@ ci.test('uso_tp', 'h21_1', 'p17_4', test = 'x2', data = data)
 > Hay evidencia fuerte ($x^2 = 194.9$, $\mathrm{df} = 136$, $p \approx 0.0007$;
 > $mi = 219.4$, $p \approx 7.7\times10^{-6}$) de que el uso del transporte
 > público se relaciona con la ocupación, aun controlando por la eficiencia y la
-> seguridad percibidas —y por separado con cada una ($p \approx 1.3\times10^{-5}$
+> seguridad percibidas, y por separado con cada una ($p \approx 1.3\times10^{-5}$
 > y $p \approx 1.7\times10^{-4}$). La asociación es consistente con el modelo
 > propuesto, en el que la ocupación influye sobre el uso del transporte público a
 > través del ingreso familiar.
 
-Vale la pena registrar un resultado metodológico intermedio. En una versión
-previa del análisis la variable respuesta era `p1a_12` (uso del automóvil
-particular) en lugar de `uso_tp`, y esta misma prueba salía apenas al borde
-($p \approx 0.04$ por permutación). Al agregar los siete modos públicos en
-`uso_tp` la señal se vuelve mucho más limpia: colapsar reduce los grados de
+En una versión previa del análisis la variable respuesta era `p1a_12` (uso del
+automóvil particular) en lugar de `uso_tp`, y esta misma prueba salía apenas al
+borde ($p \approx 0.04$ por permutación). Al agregar los siete modos públicos en
+`uso_tp` la señal se vuelve mucho más limpia. Colapsar reduce los grados de
 libertad y concentra la frecuencia en tres celdas en lugar de repartirla entre
-las categorías de un solo modo. Es un ejemplo de que la construcción de la
-variable agregada no es una comodidad de notación, sino una condición para que la
-prueba tenga potencia.
+las categorías de un solo modo. La variable agregada no es una comodidad de
+notación: es una condición para que la prueba tenga potencia.
 
 #### Comparación de estructuras
 
@@ -815,8 +778,8 @@ El resultado es contundente y a la vez engañoso. La red aprendida obtiene un BI
 de $-15\,963$ frente a $-20\,609$ de la propuesta, y un AIC de $-15\,617$ frente
 a $-17\,347$: gana por ambos criterios y por un margen muy amplio. Pero al mirar
 la estructura se ve que conserva apenas **5 arcos de los 11 propuestos**
-—`escol|edad_1`, `Tam_loc|estrato`, `sexo|escol`, `p17_1|Tam_loc`,
-`p17_4|p17_1`— y que **`uso_tp` queda aislada, sin un solo padre**, junto con
+(`escol|edad_1`, `Tam_loc|estrato`, `sexo|escol`, `p17_1|Tam_loc`,
+`p17_4|p17_1`) y que **`uso_tp` queda aislada, sin un solo padre**, junto con
 `h21_1` e `ing_fam`.
 
 La explicación está en la penalización. El BIC penaliza con
@@ -824,8 +787,8 @@ $\frac{\log n}{2}$ por parámetro, y aquí el coeficiente de penalización repor
 es $3.54$ con $n = 1190$. Los nodos que motivan el estudio son justamente los de
 mayor cardinalidad: agregar `ing_fam` (8 niveles) como padre de `uso_tp` cuesta
 $2 \times 8 = 16$ parámetros adicionales, y agregar los tres padres propuestos
-cuesta 96. La ganancia en verosimilitud existe —las pruebas de independencia
-condicional la detectan— pero no alcanza a pagar ese costo. Dicho de otro modo:
+cuesta 96. La ganancia en verosimilitud existe, y las pruebas de independencia
+condicional la detectan, pero no alcanza a pagar ese costo. Dicho de otro modo:
 el criterio de score responde a la pregunta "¿cuántos arcos justifica el tamaño
 de muestra?", no a la pregunta "¿existe esta dependencia?". Son preguntas
 distintas y aquí dan respuestas distintas.
@@ -854,7 +817,7 @@ una combinación específica de cuatro condiciones y con MLE varias celdas de la
 CPT salen `0` o `NaN` por falta de observaciones, lo que sesga el muestreo.
 
 Se usa `method = "lw"` en vez del muestreo por rechazo por la misma razón: la
-evidencia es rara —61 de 1 190 filas la cumplen—, de modo que rechazar
+evidencia es rara, solo 61 de 1 190 filas la cumplen, así que rechazar
 descartaría alrededor del 95 % de las simulaciones. `lw` fija la evidencia y
 pondera. Exige pasarla como `list()`, lo que además permite
 `ing_fam = c("7", "8")` para aceptar cualquiera de los dos niveles altos.
@@ -893,17 +856,17 @@ cpquery(bn, event = (uso_tp == "Cotidiano"),
 ```
 
 **≈ 55 %.** La diferencia es de apenas ~4 puntos porcentuales: para este grupo,
-la percepción de calidad del transporte público **mueve poco la aguja**. Es un
-resultado contraintuitivo pero coherente con la estructura del modelo —en
+la percepción de calidad del transporte público **mueve poco la aguja**. El
+resultado es contraintuitivo pero coherente con la estructura del modelo. En
 localidades grandes el uso cotidiano está sostenido por la disponibilidad de la
 red y por la ausencia de alternativas de tiempo comparable, no por lo bien que se
 califique el servicio.
 
 ##### Validación contra la muestra
 
-Toda la cadena anterior —estructura impuesta, suavizado bayesiano, muestreo
-ponderado— podría estar generando el número. La verificación directa consiste en
-mirar el subconjunto de personas que efectivamente cumplen la evidencia:
+La estructura impuesta, el suavizado bayesiano y el muestreo ponderado podrían
+estar generando el número por sí solos. La verificación directa consiste en mirar
+el subconjunto de personas que cumplen la evidencia:
 
 ```{r}
 sub = subset(data, ing_fam %in% c("7", "8") & Tam_loc == "1" &
@@ -915,16 +878,16 @@ prop.table(table(sub$uso_tp))
 
 37 de 61 = **60.7 %** de uso cotidiano en la muestra directa, contra **59 %** que
 estima la red. La diferencia (1.7 puntos) es menor que el error de muestreo que
-cabría esperar con $n = 61$, de modo que el resultado no depende de la estructura
-impuesta. La red aporta sobre el conteo directo la capacidad de responder
-contrafactuales —como el escenario ineficiente/inseguro— para los que el
+cabría esperar con $n = 61$, así que el resultado no depende de la estructura
+impuesta. Sobre el conteo directo, la red aporta la capacidad de responder
+contrafactuales, como el escenario ineficiente/inseguro, para los que el
 subconjunto correspondiente sería aún más pequeño.
 
 ### Modelo 2 — Infraestructura vial y normas de tránsito
 
 #### Especificación de la DAG
 
-La estructura operacionaliza **H2**: la localidad y la edad determinan tanto el
+La estructura traduce **H2** a arcos: la localidad y la edad determinan tanto el
 estado percibido de la infraestructura como el cumplimiento declarado, y el
 estado de la infraestructura influye además directamente sobre el cumplimiento.
 Es una DAG saturada respecto de `NOR`: los cuatro nodos restantes son sus padres.
@@ -965,10 +928,10 @@ bn_mle_pablo = bn.fit(dag_pablo, data = data_pablo, method = "mle")
 bn_mle_pablo$NOR
 ```
 
-La CPT de `NOR` ya adelanta el resultado: la probabilidad de cumplimiento alto se
+La CPT de `NOR` ya adelanta el resultado. La probabilidad de cumplimiento alto se
 mueve entre 0.40 y 0.80 según la combinación de padres, pero sin un patrón
-monótono en `PAV` ni en `ACE`, y las celdas más extremas corresponden a los
-grupos con menos observaciones.
+monótono en `PAV` ni en `ACE`. Las celdas más extremas corresponden a los grupos
+con menos observaciones.
 
 #### Significancia de las relaciones de dependencia
 
@@ -997,16 +960,15 @@ arc.strength(dag_pablo, data = data_pablo, criterion = "mi")
 Ninguno de los cuatro arcos hacia `NOR` alcanza significancia al 5 %: `PAV` queda
 en $p = 0.060$, `ACE` en $p = 0.092$, `LOC` en $p = 0.484$ y `EDAD` en
 $p = 0.277$. Los dos primeros están lo bastante cerca del umbral como para no
-descartar un efecto pequeño con muestra insuficiente, pero tal como están los
-datos **H2 no se sostiene**.
+descartar un efecto pequeño con muestra insuficiente. Tal como están los datos,
+**H2 no se sostiene**.
 
 ##### Revisión con un indicador alternativo
 
-Una posible explicación del resultado es que `ACE` sea una mala
-operacionalización: la ENMT no pregunta por banquetas, así que el reactivo
-disponible es el de puentes peatonales, que muchas personas simplemente no
-utilizan. El archivo alternativo sustituye ese reactivo por el de señalamientos
-viales, con 860 casos.
+Una posible explicación del resultado es que `ACE` sea un mal indicador. La ENMT
+no pregunta por banquetas, así que el reactivo disponible es el de puentes
+peatonales, que muchas personas simplemente no utilizan. El archivo alternativo
+sustituye ese reactivo por el de señalamientos viales, con 860 casos.
 
 ```{r}
 data_pablo_alt = read.csv("data/clean_enmt_vial_alt.csv", stringsAsFactors = TRUE)
@@ -1023,11 +985,10 @@ ci.test("NOR", "PAV", c("LOC", "EDAD", "ACE"), test = "mi", data = data_pablo_al
 
 Con señalamientos, el arco `ACE → NOR` sí resulta significativo
 ($mi = 26.3$, $p = 0.0097$), mientras que `PAV → NOR` sigue sin serlo
-($p = 0.229$). La lectura sustantiva es que lo que se asocia con el cumplimiento
-declarado de las normas es la **señalización** —el elemento de la infraestructura
-que efectivamente comunica la norma— y no el estado del pavimento. Es un
-resultado que no estaba en la hipótesis original y que surge de someter la
-operacionalización a prueba.
+($p = 0.229$). Lo que se asocia con el cumplimiento declarado de las normas es la
+**señalización**, el elemento de la infraestructura que comunica la norma, y no el
+estado del pavimento. El resultado no estaba en la hipótesis original: aparece al
+medir la infraestructura con otro reactivo.
 
 #### Comparación de estructuras
 
@@ -1058,35 +1019,36 @@ graphviz.plot(best_dag_pablo, shape = "ellipse")
 
 La red aprendida, `[LOC][EDAD][PAV][NOR][ACE|PAV]`, mejora el BIC de $-2\,910$ a
 $-2\,749$ y el AIC de $-2\,819$ a $-2\,732$, y conserva un único arco:
-`PAV → ACE`. Igual que en el modelo 1 —y aquí con solo 5 nodos binarios o
-ternarios, donde la penalización por complejidad es mucho más benigna—, `NOR`
-queda sin padres.
+`PAV → ACE`. Igual que en el modelo 1, `NOR` queda sin padres. Y aquí hay solo 5
+nodos binarios o ternarios, donde la penalización por complejidad es mucho más
+benigna.
 
 #### Pertinencia de las relaciones de la nueva DAG
 
 Que `hc()` deje `NOR` aislada, sin una sola flecha entrante, significa que
 concluyó que ninguna de las otras variables ayuda a predecir el cumplimiento. Es
 consistente con las pruebas de independencia condicional de la sección anterior,
-y hay tres razones que lo explican:
+y hay tres razones que lo explican.
 
-- **Los números no van en orden.** Como se verá en las consultas, las cuatro
-  combinaciones de `PAV` y `ACE` dan 0.72 (bien las dos), 0.70 (mal las dos),
-  0.59 (bien el pavimento pero mal las aceras) y 0.54 (al revés). Si la relación
-  fuera real y monótona, 0.72 debería ser el valor más alto, 0.70 el más bajo y
-  los mixtos quedar en medio. Ocurre lo contrario: los mixtos son los dos más
-  bajos. Además son los dos grupos más pequeños de la muestra, de modo que sus
-  proporciones se mueven mucho con pocos casos. Ese desorden es justamente lo que
-  hace que `hc()` descarte los arcos.
-- **El reactivo mide autoimagen.** `p31` pregunta qué tanto cumple uno mismo, no
-  qué tanto cumplen los demás. En el `summary` se ve el efecto: 554 de 806
-  personas quedan en `alto` y solo 252 en `bajo`. Con casi el 69 % de la muestra
-  amontonada del mismo lado, el margen para que aparezcan diferencias entre
-  grupos es estrecho —un caso de libro de sesgo de deseabilidad social.
-- **El resultado depende del reactivo.** Como muestra la revisión con el
-  indicador alternativo, al cambiar puentes peatonales por señalamientos el
-  `ci.test` de `ACE` baja a 0.0097 y sí resulta significativo. La conclusión "la
-  infraestructura no importa" es por tanto demasiado fuerte: lo correcto es decir
-  que *estos dos indicadores concretos* de infraestructura física no discriminan.
+La primera es que los números no van en orden. Las cuatro combinaciones de `PAV`
+y `ACE` dan 0.72 (bien las dos), 0.70 (mal las dos), 0.59 (bien el pavimento pero
+mal las aceras) y 0.54 (al revés). Si la relación fuera real y monótona, 0.72
+debería ser el valor más alto, 0.70 el más bajo y los mixtos quedar en medio.
+Ocurre lo contrario: los mixtos son los dos más bajos. Además son los dos grupos
+más pequeños de la muestra, así que sus proporciones se mueven mucho con pocos
+casos. Ese desorden es lo que hace que `hc()` descarte los arcos.
+
+La segunda es que el reactivo mide autoimagen. `p31` pregunta qué tanto cumple
+uno mismo, no qué tanto cumplen los demás. En el `summary` se ve el efecto: 554
+de 806 personas quedan en `alto` y solo 252 en `bajo`. Con casi el 69 % de la
+muestra amontonada del mismo lado, el margen para que aparezcan diferencias entre
+grupos es estrecho. Es sesgo de deseabilidad social.
+
+La tercera es que el resultado depende del reactivo. Al cambiar puentes
+peatonales por señalamientos, el `ci.test` de `ACE` baja a 0.0097 y sí resulta
+significativo. La conclusión "la infraestructura no importa" es por tanto
+demasiado fuerte: lo correcto es decir que *estos dos indicadores concretos* de
+infraestructura física no discriminan.
 
 #### Respuesta a Q2
 
@@ -1095,8 +1057,7 @@ y hay tres razones que lo explican:
 > su localidad se encuentran en buen estado y aquellas que consideran que no?**
 
 Se responde dos veces: sobre la DAG propuesta, que sí tiene los arcos
-`PAV → NOR` y `ACE → NOR`, y sobre la aprendida, que no los tiene. La comparación
-de ambas respuestas es en sí misma el resultado.
+`PAV → NOR` y `ACE → NOR`, y sobre la aprendida, que no los tiene.
 
 Sobre la red propuesta, las cuatro combinaciones de evidencia:
 
@@ -1164,24 +1125,24 @@ cpquery(bn_pablo,
 **Casi no hay diferencia.** Cada `cpquery` responde lo mismo: de cada 100
 personas con cierta opinión sobre sus calles, cuántas dicen cumplir mucho las
 normas. Con la DAG construida a mano salen 72.5 entre quienes califican bien
-pavimento y puentes, y 69.7 entre quienes califican mal ambos: menos de tres
-puntos de diferencia. Los `ci.test` correspondientes dan 0.060 para `PAV` y
-0.092 para `ACE`; ambos superan el umbral de 0.05, así que no puede descartarse
-que se trate de azar muestral. Sobre la red aprendida la diferencia desaparece
-por completo (0.6865 frente a 0.6864, es decir, la proporción incondicional de
-`NOR = alto`), que es exactamente lo que debe ocurrir cuando el nodo no tiene
-padres, y sirve como verificación de que el muestreo está funcionando.
+pavimento y puentes, y 69.7 entre quienes califican mal ambos. Son menos de tres
+puntos de diferencia. Los `ci.test` correspondientes dan 0.060 para `PAV` y 0.092
+para `ACE`. Ambos superan el umbral de 0.05, así que no puede descartarse el azar
+muestral. Sobre la red aprendida la diferencia desaparece por completo: 0.6865
+frente a 0.6864, la proporción incondicional de `NOR = alto`. Es lo que debe
+ocurrir cuando el nodo no tiene padres, y sirve como verificación de que el
+muestreo está funcionando.
 
 ### Modelo 3 — Ingreso familiar y uso del automóvil particular
 
 > **Q3.** ¿Cuál es la probabilidad de cada tipo de ingreso familiar y uso
 > cotidiano del automóvil dado el tamaño de la localidad?
 
-Es una consulta de naturaleza distinta a las dos anteriores: no pide una
-probabilidad puntual ni una comparación entre dos escenarios, sino una
-**distribución conjunta** de dos variables —cuartil de ingreso y uso del
-automóvil— condicionada a una tercera. El resultado es por tanto una tabla de
-4 × 4 celdas, una por combinación de cuartil y tamaño de localidad.
+Es una consulta de naturaleza distinta a las dos anteriores. No pide una
+probabilidad puntual ni una comparación entre dos escenarios, sino la
+**distribución conjunta** de dos variables, cuartil de ingreso y uso del
+automóvil, condicionada a una tercera. El resultado es una tabla de 4 × 4 celdas,
+una por combinación de cuartil y tamaño de localidad.
 
 #### Especificación de la DAG
 
@@ -1195,7 +1156,7 @@ dag_emi = empty.graph(nodes = c("Tam_loc", "ing_q", "auto"))
 
 A esa bifurcación se añade un tercer arco, `ing_q → auto`. La justificación es la
 misma que sostiene `ing_fam → uso_tp` en el modelo 1, con el signo invertido: el
-ingreso es lo que permite adquirir y mantener un automóvil, de modo que debe
+ingreso es lo que permite adquirir y mantener un automóvil, y debe por tanto
 influir sobre su uso cotidiano por encima de lo que ya explique el tamaño de la
 localidad. Dejar solo la bifurcación equivaldría a afirmar
 $\text{ing\_q} \perp\!\!\!\perp \text{auto} \mid \text{Tam\_loc}$, hipótesis que se
@@ -1232,16 +1193,16 @@ bn_mle_emi$ing_q
 bn_mle_emi$auto
 ```
 
-Analizando estas probabilidades condicionales se puede notar que sí cambian entre
-cuartiles de ingreso, ya que las variaciones que se pueden ver entre columnas de
-la misma CPT no son del mismo orden de magnitud (por ejemplo 0.2000 y 0.3087 en
-la columna de localidades de 100 000 o más habitantes), lo que sugiere que `ing_q` sí tiene una dependencia directa sobre
-el uso cotidiano del automóvil particular.
+Las probabilidades condicionales cambian entre cuartiles de ingreso. Las
+variaciones entre columnas de la misma CPT no son del mismo orden de magnitud:
+por ejemplo, 0.2000 y 0.3087 en la columna de localidades de 100 000 o más
+habitantes. `ing_q` tiene entonces una dependencia directa sobre el uso cotidiano
+del automóvil particular.
 
-El patrón se lee mejor en el margen, promediando sobre el tamaño de localidad:
-la probabilidad de uso cotidiano del automóvil pasa de 0.128 en `Q1` a 0.173 en
+El patrón se lee mejor en el margen, promediando sobre el tamaño de localidad.
+La probabilidad de uso cotidiano del automóvil pasa de 0.128 en `Q1` a 0.173 en
 `Q2`, 0.228 en `Q3` y 0.341 en `Q4`. Es un gradiente monótono que casi triplica
-el valor inicial, y es la señal más limpia de los tres modelos.
+el valor inicial.
 
 #### Significancia de las relaciones de dependencia
 
@@ -1258,10 +1219,10 @@ ci.test("auto", "Tam_loc", "ing_q", test = "x2", data = data_emi)
 
 Ambos resultan significativos: `ing_q → auto` con $x^2 = 59.2$, $\mathrm{df} = 24$,
 $p = 8.4\times10^{-5}$, y `Tam_loc → auto` con $x^2 = 47.6$, $p = 0.0029$. Es el
-único de los tres modelos en el que **todos** los arcos hacia la variable
-respuesta superan la prueba, y confirma que el tercer arco añadido a la
-bifurcación no era decorativo: el ingreso aporta información sobre el uso del
-automóvil que el tamaño de la localidad no contiene.
+único de los cuatro modelos en el que **todos** los arcos hacia la variable
+respuesta superan la prueba. El tercer arco añadido a la bifurcación no era
+decorativo: el ingreso aporta información sobre el uso del automóvil que el
+tamaño de la localidad no contiene.
 
 #### Comparación de estructuras
 
@@ -1280,16 +1241,16 @@ score(best_dag_emi, data = data_emi, type = "bic")
 score(best_dag_emi, data = data_emi, type = "aic")
 ```
 
-Aquí los dos criterios **se contradicen**, y es el hallazgo metodológico de esta
-sección. El *hill-climbing*, que optimiza BIC por omisión, vuelve a dejar la
-variable respuesta sin padres —`[Tam_loc][auto][ing_q|Tam_loc]`— y mejora el BIC
-de $-3\,274.6$ a $-3\,212.2$. Pero por AIC gana la DAG propuesta: $-3\,161.2$
-frente a $-3\,171.2$. La diferencia entre ambos criterios es solo el peso de la
-penalización —$\log(n)/2 \approx 3.4$ por parámetro en BIC contra $1$ en AIC—, de
-modo que el desacuerdo ubica a este modelo justo en la frontera: la dependencia
-existe y las pruebas la detectan con $p \approx 10^{-5}$, pero su magnitud está en
-el límite de lo que 921 observaciones pueden pagar en complejidad. La inferencia
-se hace sobre la DAG propuesta, coherentemente con el resultado de `ci.test`.
+Aquí los dos criterios **se contradicen**. El *hill-climbing*, que optimiza BIC
+por omisión, vuelve a dejar la variable respuesta sin padres,
+`[Tam_loc][auto][ing_q|Tam_loc]`, y mejora el BIC de $-3\,274.6$ a $-3\,212.2$.
+Pero por AIC gana la DAG propuesta: $-3\,161.2$ frente a $-3\,171.2$. La
+diferencia entre ambos criterios es solo el peso de la penalización,
+$\log(n)/2 \approx 3.4$ por parámetro en BIC contra $1$ en AIC. El desacuerdo
+ubica a este modelo justo en la frontera: la dependencia existe y las pruebas la
+detectan con $p \approx 10^{-5}$, pero su magnitud está en el límite de lo que 921
+observaciones pueden pagar en complejidad. La inferencia se hace sobre la DAG
+propuesta, coherentemente con el resultado de `ci.test`.
 
 #### Respuesta a Q3
 
@@ -1297,10 +1258,10 @@ La consulta pide la probabilidad conjunta de cuartil de ingreso y uso cotidiano
 del automóvil para cada tamaño de localidad, es decir
 $P(\text{ing\_q} = q,\; \text{auto} = \text{Cotidiano} \mid \text{Tam\_loc} = t)$
 para las 16 combinaciones. Se recorren con un doble ciclo en vez de escribir 16
-llamadas: `cpquery()` captura sus argumentos sin evaluarlos, así que el evento
-variable se construye como texto y se inyecta con `eval(parse(...))`, que es el
-modismo documentado para consultas programáticas. La evidencia se pasa como
-`list()` porque se usa `method = "lw"`.
+llamadas. `cpquery()` captura sus argumentos sin evaluarlos, así que el evento
+variable se construye como texto y se inyecta con `eval(parse(...))`, el modismo
+documentado para consultas programáticas. La evidencia se pasa como `list()`
+porque se usa `method = "lw"`.
 
 ```{r}
 bn_emi = bn.fit(dag_emi, data = data_emi, method = "bayes")
@@ -1331,19 +1292,19 @@ La lectura tiene dos direcciones. **Por columna** (dentro de un mismo tamaño de
 localidad), la probabilidad conjunta crece con el ingreso en las localidades
 grandes: en las de 100 000 o más habitantes va de 0.023 en `Q1` a 0.096 en `Q4`,
 y en las de 15 000 a 99 999 de 0.012 a 0.132. En las localidades pequeñas el
-patrón se invierte parcialmente —en las de menos de 2 500 habitantes el valor más
-alto lo tiene `Q2` (0.063)—, pero eso refleja la composición de la muestra más
+patrón se invierte parcialmente (en las de menos de 2 500 habitantes el valor más
+alto lo tiene `Q2`, 0.063), pero eso refleja la composición de la muestra más
 que la conducta: en las localidades chicas casi no hay hogares en `Q4`. **Por
 fila**, el uso cotidiano del automóvil se concentra en las localidades grandes:
 la marginal cae de 0.239 y 0.263 en las dos categorías más grandes a 0.141 y
 0.180 en las dos más pequeñas.
 
-Vale la pena notar que este resultado convive sin contradicción con el del
-modelo 1. Allí, entre personas de ingresos altos en localidades grandes, el
-transporte público se usaba cotidianamente en un 59 % de los casos; aquí, el
-automóvil se usa cotidianamente en un 24 % de las localidades grandes. Las dos
-cosas pueden ser ciertas a la vez porque los modos no son excluyentes: una misma
-persona puede declarar uso cotidiano de ambos.
+Este resultado convive sin contradicción con el del modelo 1. Allí, entre
+personas de ingresos altos en localidades grandes, el transporte público se usaba
+cotidianamente en un 59 % de los casos. Aquí el automóvil se usa cotidianamente
+en un 24 % de las localidades grandes. Las dos cosas pueden ser ciertas a la vez
+porque los modos no son excluyentes: una misma persona puede declarar uso
+cotidiano de ambos.
 
 ##### Validación contra la muestra
 
@@ -1360,20 +1321,19 @@ estructural: con `Tam_loc` como única evidencia y sin nodos no observados, la
 consulta se reduce al producto de dos entradas de las CPTs,
 $P(\text{ing\_q} \mid \text{Tam\_loc}) \cdot P(\text{auto} \mid \text{ing\_q}, \text{Tam\_loc})$,
 que con estimación por máxima verosimilitud es justamente la frecuencia relativa
-observada. El `cpquery` no aporta aquí precisión adicional, pero sí verifica que
-el muestreo esté funcionando —lo que da confianza en las consultas de los
-modelos 1 y 2, donde sí hay nodos intermedios y el conteo directo no es viable.
+observada. El `cpquery` no aporta aquí precisión adicional, pero verifica que el
+muestreo esté funcionando. Eso da confianza en las consultas de los modelos 1 y
+2, donde sí hay nodos intermedios y el conteo directo no es viable.
 
 ### Modelo 4 — Sexo y calificación de comodidad del transporte público
 
 > **Q4.** ¿Existen diferencias entre hombres y mujeres en la calificación de
 > comodidad del transporte público que usan cotidianamente?
 
-La pregunta tiene una carga sustantiva evidente: la experiencia del transporte
-público está documentadamente diferenciada por género, sobre todo en lo que toca
-a acoso y sensación de inseguridad. La hipótesis **H4** es que esa diferencia se
-refleje en la calificación de comodidad, controlando por localidad, edad y
-seguridad percibida.
+La experiencia del transporte público está documentadamente diferenciada por
+género, sobre todo en lo que toca a acoso y sensación de inseguridad. La
+hipótesis **H4** es que esa diferencia se refleje en la calificación de comodidad,
+controlando por localidad, edad y seguridad percibida.
 
 #### Especificación de la DAG
 
@@ -1382,7 +1342,7 @@ dag_mateo = empty.graph(nodes = c("LOC", "EDAD", "SEXO", "SEG", "COM"))
 ```
 
 La estructura coloca a `COM` como sumidero con cuatro padres y a `SEG` como
-mediador: `LOC` y `EDAD` influyen sobre la seguridad percibida, y esta a su vez
+mediador. `LOC` y `EDAD` influyen sobre la seguridad percibida, y esta a su vez
 sobre la comodidad, además del efecto directo de las tres. `SEXO` entra solo
 hacia `COM`, porque no tiene sentido que el sexo dependa de la localidad ni de la
 edad.
@@ -1425,7 +1385,7 @@ prop.table(table(data_mateo$SEXO, data_mateo$COM), margin = 1)
 ```
 
 196 de 352 hombres califican la comodidad como buena (55.7 %) y 172 de 289
-mujeres (59.5 %). Son **menos de cuatro puntos porcentuales**, y en la dirección
+mujeres (59.5 %). Son **menos de cuatro puntos porcentuales**, y van en dirección
 contraria a la que anticipaba H4: son las mujeres quienes califican mejor.
 
 #### Significancia de las relaciones de dependencia
@@ -1451,19 +1411,19 @@ arc.strength(dag_mateo, data = data_mateo, criterion = "mi")
 ```
 
 El contraste entre los cuatro arcos es el más nítido de todo el trabajo.
-`SEG → COM` es abrumadoramente significativo ($mi = 184.8$, $p < 2.2\times10^{-16}$),
-mientras que `SEXO → COM` no lo es ($mi = 15.0$, $\mathrm{df} = 12$, $p = 0.240$),
-ni tampoco `LOC` ($p = 0.095$) ni `EDAD` ($p = 0.218$). La `arc.strength` lo
-confirma: la del arco `SEG → COM` es del orden de $10^{-33}$ frente a $0.24$ del
-arco de sexo. Dicho de otra forma, **quien determina si el viaje se califica como
-cómodo es la sensación de seguridad, no el sexo de quien viaja.**
+`SEG → COM` es abrumadoramente significativo ($mi = 184.8$, $p < 2.2\times10^{-16}$).
+`SEXO → COM` no lo es ($mi = 15.0$, $\mathrm{df} = 12$, $p = 0.240$), ni tampoco
+`LOC` ($p = 0.095$) ni `EDAD` ($p = 0.218$). La `arc.strength` lo confirma: la del
+arco `SEG → COM` es del orden de $10^{-33}$ frente a $0.24$ del arco de sexo.
+**Quien determina si el viaje se califica como cómodo es la sensación de
+seguridad, no el sexo de quien viaja.**
 
 ##### Revisión con otro indicador
 
-Antes de aceptar la respuesta negativa conviene comprobar que no dependa del
+Antes de aceptar la respuesta negativa hay que comprobar que no dependa del
 reactivo elegido, como ocurrió en el modelo 2 con los puentes peatonales. Se
-repite todo sustituyendo la comodidad por *condiciones de la unidad*
-(`p1c_i_7`), el aspecto más cercano dentro de la misma batería.
+repite todo sustituyendo la comodidad por *condiciones de la unidad* (`p1c_i_7`),
+el aspecto más cercano dentro de la misma batería.
 
 ```{r}
 alt_p = califica(paste0("p1c_", modos, "_7"))   # condiciones de la unidad
@@ -1490,7 +1450,7 @@ ci.test("COM", "SEXO", c("LOC", "EDAD", "SEG"), test = "mi", data = data_mateo_a
 Con el indicador alternativo la brecha se mantiene en la misma dirección y del
 mismo tamaño (57.7 % de los hombres contra 63.7 % de las mujeres) y sigue sin ser
 significativa ($p = 0.467$). A diferencia del modelo 2, aquí el cambio de
-reactivo **no** altera la conclusión, lo que la vuelve considerablemente más
+reactivo **no** altera la conclusión. Eso la vuelve considerablemente más
 sólida.
 
 #### Comparación de estructuras
@@ -1517,11 +1477,10 @@ graphviz.plot(best_dag_mateo, shape = "ellipse")
 Aquí ocurre algo que no había pasado en los tres modelos anteriores: el
 *hill-climbing* **conserva un arco hacia la variable respuesta**. La red aprendida
 es `[LOC][EDAD][SEXO][SEG][COM|SEG]`, es decir, tira `LOC`, `EDAD` y `SEXO` pero
-mantiene `SEG → COM`. Y los dos criterios coinciden por primera vez en el
-trabajo: BIC mejora de $-2\,407.9$ a $-2\,336.5$ y AIC de $-2\,332.0$ a
-$-2\,320.9$. Score y prueba de hipótesis dicen exactamente lo mismo, lo cual es
-la mejor situación posible: la dependencia que existe es fuerte, y las que no
-existen se descartan sin ambigüedad.
+mantiene `SEG → COM`. Los dos criterios coinciden por primera vez en el trabajo:
+BIC mejora de $-2\,407.9$ a $-2\,336.5$ y AIC de $-2\,332.0$ a $-2\,320.9$. Score
+y prueba de hipótesis dicen lo mismo: la dependencia que existe es fuerte, y las
+que no existen se descartan sin ambigüedad.
 
 #### Respuesta a Q4
 
@@ -1588,14 +1547,13 @@ cpquery(bn_mateo, event = (COM == "buena"),
 | Sin condicionar (DAG aprendida) | 0.574 | 0.574 | 0.0 pp |
 
 **Casi no hay diferencia, y la que hay no es significativa.** La brecha ronda los
-cinco puntos porcentuales y es notablemente estable: se mantiene igual entre
-quienes se sienten seguros y entre quienes se sienten inseguros, lo que descarta
-que exista un subgrupo donde el efecto se concentre. Sobre la red aprendida
-—donde `SEXO` no es padre de `COM`— la diferencia desaparece por completo
-(0.5739 contra 0.5738), que es lo que debe ocurrir y sirve como verificación del
-muestreo.
+cinco puntos porcentuales y es notablemente estable. Se mantiene igual entre
+quienes se sienten seguros y entre quienes se sienten inseguros, así que no hay
+un subgrupo donde el efecto se concentre. Sobre la red aprendida, donde `SEXO` no
+es padre de `COM`, la diferencia desaparece por completo (0.5739 contra 0.5738).
+Es lo que debe ocurrir, y sirve como verificación del muestreo.
 
-Lo que sí domina es la seguridad percibida: pasar de "inseguro" a "seguro" mueve
+Lo que sí domina es la seguridad percibida. Pasar de "inseguro" a "seguro" mueve
 la probabilidad de calificar bien la comodidad de 0.24 a 0.75, más de **cincuenta
 puntos porcentuales**, contra los cinco del sexo. La diferencia de género existe
 en la muestra, pero es un orden de magnitud menor que el factor que realmente
@@ -1608,51 +1566,48 @@ calidad de un servicio o de una infraestructura es un predictor mucho más débi
 de la conducta declarada que las variables estructurales de disponibilidad y
 posición socioeconómica.** En el modelo 1 la percepción de eficiencia y seguridad
 mueve el uso cotidiano del transporte público apenas cuatro puntos porcentuales
-en el grupo de ingresos altos en ciudades grandes; en el modelo 2 el estado
+en el grupo de ingresos altos en ciudades grandes. En el modelo 2 el estado
 percibido del pavimento y de los puentes peatonales mueve el cumplimiento
-declarado tres puntos, dentro del ruido muestral. El modelo 3 cierra el
-argumento por el lado contrario: cuando la variable explicativa **sí** es
-estructural —el cuartil de ingreso, que determina la capacidad de comprar y
-mantener un automóvil—, la señal aparece limpia, monótona y significativa
-($p = 8.4\times10^{-5}$), sobre la misma encuesta y con menos observaciones (921).
-No es entonces que la ENMT carezca de potencia: es que la percepción predice
-poco. El modelo 4 matiza esa lectura de forma importante: ahí la percepción —la
-seguridad sentida— **sí** es el factor dominante, y mueve la calificación de
-comodidad más de cincuenta puntos porcentuales. La distinción relevante no es
-entonces "percepción contra estructura", sino qué predice qué: la percepción
-explica bien **otras percepciones** (seguridad → comodidad), pero no la
-**conducta** declarada (uso del transporte, cumplimiento de normas), que responde
-a la disponibilidad y a la posición socioeconómica.
+declarado tres puntos, dentro del ruido muestral. El modelo 3 cierra el argumento
+por el lado contrario. Cuando la variable explicativa **sí** es estructural, como
+el cuartil de ingreso, que determina la capacidad de comprar y mantener un
+automóvil, la señal aparece limpia, monótona y significativa
+($p = 8.4\times10^{-5}$) sobre la misma encuesta y con menos observaciones (921).
+No es que la ENMT carezca de potencia: es que la percepción predice poco. El
+modelo 4 matiza la lectura. Ahí la percepción, la seguridad sentida, **sí** es el
+factor dominante, y mueve la calificación de comodidad más de cincuenta puntos
+porcentuales. La distinción relevante no es "percepción contra estructura", sino
+qué predice qué: la percepción explica bien **otras percepciones**
+(seguridad → comodidad), pero no la **conducta** declarada (uso del transporte,
+cumplimiento de normas), que responde a la disponibilidad y a la posición
+socioeconómica.
 
 También convergen en una advertencia metodológica. En los tres primeros casos el
-*hill-climbing* con BIC produce una red que gana en ese score y que, sin
-embargo, es sustantivamente vacía respecto de la pregunta de investigación: la
-variable respuesta queda sin padres. Las causas difieren —en
-el modelo 1 domina la penalización frente a nodos de alta cardinalidad
-(`estrato` con 16 niveles, `h21_1` con 18); en el modelo 2, con solo cinco nodos
-de baja cardinalidad, la causa es la ausencia genuina de señal, confirmada de
-forma independiente por las pruebas de independencia condicional; y en el
-modelo 3 el veredicto depende del criterio, porque BIC prefiere la red aprendida
-y AIC la propuesta. La lección es que el score y la prueba de hipótesis responden
-preguntas distintas, y que reportar solo el resultado del aprendizaje automático
-de estructura habría ocultado, en los modelos 1 y 3, dependencias que sí existen
-y que las pruebas detectan con $p \approx 10^{-5}$. El modelo 4 es la excepción
-que confirma el diagnóstico: es el único donde el *hill-climbing* conserva un arco
-hacia la respuesta (`SEG → COM`) y donde BIC, AIC y las pruebas de independencia
-coinciden sin ambigüedad. La diferencia no está en el método sino en la fuerza de
-la señal: cuando una dependencia es de $mi = 184.8$ en lugar de $mi = 20$, ningún
-criterio de penalización la descarta.
+*hill-climbing* con BIC produce una red que gana en ese score pero que no dice
+nada sobre la pregunta de investigación: la variable respuesta queda sin padres.
+Las causas difieren. En el modelo 1 domina la penalización frente a nodos de alta
+cardinalidad (`estrato` con 16 niveles, `h21_1` con 18). En el modelo 2, con solo
+cinco nodos de baja cardinalidad, la causa es la ausencia genuina de señal,
+confirmada por las pruebas de independencia condicional. En el modelo 3 el
+veredicto depende del criterio, porque BIC prefiere la red aprendida y AIC la
+propuesta. El score y la prueba de hipótesis responden preguntas distintas.
+Reportar solo el resultado del aprendizaje automático de estructura habría
+ocultado, en los modelos 1 y 3, dependencias que sí existen y que las pruebas
+detectan con $p \approx 10^{-5}$. El modelo 4 es el único donde el
+*hill-climbing* conserva un arco hacia la respuesta (`SEG → COM`) y donde BIC, AIC
+y las pruebas de independencia coinciden sin ambigüedad. La diferencia no está en
+el método sino en la fuerza de la señal: cuando una dependencia es de
+$mi = 184.8$ en lugar de $mi = 20$, ningún criterio de penalización la descarta.
 
-Un tercer hallazgo es la sensibilidad al reactivo, y su contraparte. Cambiar
-puentes peatonales por señalamientos viales convierte un arco no significativo
-($p = 0.092$) en uno significativo ($p = 0.0097$) sobre la misma pregunta
-sustantiva, lo que acota fuertemente el alcance de la respuesta negativa a Q2: lo
-que no se detecta es el efecto de *esos* indicadores, no el de la infraestructura
-vial en general. En el modelo 4 se hizo la misma comprobación —comodidad
-sustituida por condiciones de la unidad— y la conclusión **no** cambió
-($p = 0.467$), de modo que ahí la respuesta negativa sí puede sostenerse con
-confianza. La lección práctica es que una no significancia solo es informativa
-después de haberla sometido a este tipo de prueba.
+Un tercer hallazgo es la sensibilidad al reactivo. Cambiar puentes peatonales por
+señalamientos viales convierte un arco no significativo ($p = 0.092$) en uno
+significativo ($p = 0.0097$) sobre la misma pregunta sustantiva. Eso limita la
+respuesta negativa a Q2: lo que no se detecta es el efecto de *esos* indicadores,
+no el de la infraestructura vial en general. En el modelo 4 se hizo la misma
+comprobación, sustituyendo comodidad por condiciones de la unidad, y la
+conclusión **no** cambió ($p = 0.467$). Ahí la respuesta negativa sí puede
+sostenerse con confianza. Una no significancia solo es informativa después de
+someterla a este tipo de prueba.
 
 ## Conclusiones
 
@@ -1663,7 +1618,7 @@ también el uso ocasional. El resultado es robusto: coincide con la frecuencia
 muestral directa (60.7 %, $n = 61$) y se obtiene con un ajuste bayesiano de las
 CPTs y muestreo por ponderación de verosimilitud, adecuados para evidencia rara.
 El contraste con el escenario de percepción negativa (**≈ 55 %**) muestra que la
-valoración del servicio explica poco: en ciudades grandes el uso cotidiano parece
+valoración del servicio explica poco. En ciudades grandes el uso cotidiano parece
 sostenido por la disponibilidad de la red más que por su calidad percibida.
 
 **Sobre Q2.** No se encuentra una diferencia estadísticamente significativa en el
@@ -1671,9 +1626,9 @@ cumplimiento declarado de las normas de tránsito entre quienes califican bien y
 mal la infraestructura de su localidad: 72.5 % frente a 69.7 %, con
 $p = 0.060$ (pavimento) y $p = 0.092$ (puentes peatonales). El *hill-climbing*
 elimina ambos arcos. Sin embargo, al sustituir el indicador de puentes por el de
-señalamientos viales la asociación sí aparece ($p = 0.0097$), lo que sugiere que
-el vínculo relevante es con la **señalización** —el componente de la
-infraestructura que comunica la norma— y no con el estado físico del pavimento.
+señalamientos viales la asociación sí aparece ($p = 0.0097$). El vínculo
+relevante parece estar con la **señalización**, el componente de la
+infraestructura que comunica la norma, y no con el estado físico del pavimento.
 
 **Sobre Q3.** La probabilidad conjunta de cuartil de ingreso y uso cotidiano del
 automóvil, condicionada al tamaño de localidad, crece con el ingreso dentro de
@@ -1682,8 +1637,8 @@ las localidades grandes: en las de 100 000 o más habitantes va de **0.023** en
 **0.263** en las dos categorías de localidad más grandes, frente a **0.141** y
 **0.180** en las dos más pequeñas. Leída al margen del tamaño de localidad, la
 probabilidad de uso cotidiano pasa de **0.128** en el cuartil de ingreso más bajo
-a **0.341** en el más alto. Es el único de los tres modelos donde todos los arcos
-propuestos hacia la variable respuesta resultan significativos
+a **0.341** en el más alto. Es el único de los cuatro modelos donde todos los
+arcos propuestos hacia la variable respuesta resultan significativos
 ($p = 8.4\times10^{-5}$ para el ingreso, $p = 0.0029$ para el tamaño de
 localidad), aunque BIC y AIC discrepan sobre si la estructura completa se
 justifica.
@@ -1700,12 +1655,11 @@ efecto diez veces mayor que el del sexo. Es también el único de los cuatro
 modelos en que el *hill-climbing* conserva un arco hacia la variable respuesta y
 en que BIC y AIC coinciden con las pruebas de independencia.
 
-**Implicaciones.** Para el diseño de política, ambos resultados apuntan en la
-misma dirección: las intervenciones sobre la percepción (campañas de imagen,
-mejoras cosméticas) tienen un efecto esperado pequeño frente a las intervenciones
-sobre la disponibilidad y la legibilidad del sistema (cobertura de la red,
-señalización). Para la práctica del modelado, el trabajo ilustra que una DAG
-especificada desde el dominio puede ser preferible a una aprendida por score
+**Implicaciones.** Para el diseño de política, los resultados apuntan en la misma
+dirección: las intervenciones sobre la percepción (campañas de imagen, mejoras
+cosméticas) tienen un efecto esperado pequeño frente a las que actúan sobre la
+disponibilidad de la red y su señalización. Para la práctica del modelado, una
+DAG especificada desde el dominio puede ser preferible a una aprendida por score
 cuando el objetivo es responder consultas condicionales, aunque pierda la
 comparación de BIC.
 
@@ -1720,12 +1674,12 @@ comparación de BIC.
 3. *Datasets no comparables.* Los cuatro modelos se ajustan sobre subconjuntos
    distintos de la ENMT (1 190, 806, 921 y 641 casos), por lo que sus scores no
    son comparables entre sí y no pueden integrarse en una sola red. El del
-   modelo 4 es además un universo restringido por construcción —solo usuarios
-   cotidianos del transporte público—, de modo que sus resultados no se
-   extrapolan a la población general.
+   modelo 4 es además un universo restringido por construcción, con solo usuarios
+   cotidianos del transporte público, así que sus resultados no se extrapolan a la
+   población general.
 4. *Ausencia de identificación causal.* Los arcos representan dependencias
-   probabilísticas orientadas por conocimiento del dominio; los datos son
-   observacionales y transversales, de modo que las direcciones no están
+   probabilísticas orientadas por conocimiento del dominio. Los datos son
+   observacionales y transversales, así que las direcciones no están
    identificadas empíricamente y las lecturas causales son interpretativas.
 5. *Discretización gruesa del ingreso.* Los "cuartiles" de `ing_fam` no pueden
    ser exactos, porque la variable original tiene siete niveles ordinales con
@@ -1739,8 +1693,8 @@ comparación de BIC.
 **Trabajo futuro.** Cuatro extensiones inmediatas: (i) agrupar `h21_1` y
 `estrato` en menos categorías para reducir la penalización por complejidad y
 permitir una comparación de scores más justa entre la DAG propuesta y la
-aprendida; (ii) usar algoritmos de aprendizaje basados en restricciones —`pc` o
-`gs`, que operan por pruebas de independencia condicional en vez de por score—
+aprendida; (ii) usar algoritmos de aprendizaje basados en restricciones (`pc` o
+`gs`, que operan por pruebas de independencia condicional en vez de por score),
 que en este contexto deberían conservar los arcos que `ci.test` sí detecta;
 (iii) imponer una lista negra y una lista blanca (`blacklist`/`whitelist`) sobre
 `hc()` para incorporar el conocimiento del dominio al aprendizaje en vez de
