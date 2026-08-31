@@ -23,7 +23,7 @@ las columnas deben ser `factor`.
 El flujo es:
 
 1. Cargar los datos ya limpiados por `clean.py` (33 columnas seleccionadas).
-2. Definir un DAG a mano con conocimiento del dominio.
+2. Definir un dag_jf a mano con conocimiento del dominio.
 3. Ajustar las CPTs con `bn.fit()`.
 4. Contrastar la estructura propuesta (pruebas de independencia, scores) contra
    una estructura aprendida automáticamente con `hc()`.
@@ -41,7 +41,7 @@ Scutari, cuyos nodos son `A` (age), `S` (sex), `E` (education), `O` (occupation)
   y todo lo que viene después de `bn.fit()` sigue referenciando esos nombres.
 
 Los bloques afectados están marcados abajo con **[plantilla]**. Tal como está,
-`arcs(dag) = arc_set` falla porque los nodos de `arc_set` no existen en `dag`.
+`arcs(dag_jf) = arc_set` falla porque los nodos de `arc_set` no existen en `dag_jf`.
 :::
 
 ## Paquetes
@@ -71,7 +71,7 @@ ni una columna de texto — todo son códigos numéricos (`sexo` = 1/2, `escol` 
 …). Sin la conversión explícita del siguiente chunk, todas las columnas entran
 como `integer` y `bn.fit()` falla, porque una red multinomial exige `factor`.
 
-Variables usadas en el DAG:
+Variables usadas en el dag_jf:
 
 | Código    | Significado                          |
 |-----------|--------------------------------------|
@@ -82,43 +82,90 @@ Variables usadas en el DAG:
 | `h21_1`   | Ocupación principal                  |
 | `Tam_loc` | Tamaño de la localidad               |
 | `ing_fam` | Ingreso familiar                     |
-| `p17_1`   | Eficiencia del transporte público    |
-| `p17_4`   | Seguridad del transporte público     |
-| `p1a_12`  | Frecuencia de uso — Automóvil particular |
+| `p17_1`   | Eficiencia del transporte público (1 = eficiente) |
+| `p17_4`   | Seguridad del transporte público (1 = seguro) |
+| `uso_tp`  | **[artificial]** Uso de transporte público (ver abajo) |
 
 ```{r}
 data = read.csv("/Users/juanfelipezepeda/Documents/TEC/Javier 3/querysSobreTransporte/data/clean_enmt_unam.csv", stringsAsFactors = TRUE)
 head(data)
 ```
 
-Se recorta a los 10 nodos del DAG y se convierten a `factor`. Las dos cosas son
-necesarias: `bn.fit()` valida el data frame **completo**, así que aunque el DAG
+### Variable artificial `uso_tp`
+
+La pregunta que queremos responder — *¿qué tan probable es que alguien se mueva
+en transporte público?* — no tiene una sola columna que la conteste. La ENMT
+registra la frecuencia de uso **modo por modo**: `p1a_1` … `p1a_7` son los siete
+medios públicos (tren, metro, tranvía, camión/microbús, taxi, combi, …), cada
+uno codificado `1` = Cotidianamente, `2` = Ocasionalmente, `3` = Nunca, más
+`8` = NS y `9` = NC.
+
+Meter los siete como nodos separados no sirve: multiplicaría el dag_jf y dejaría la
+respuesta repartida en siete CPTs. Se colapsan en una sola variable ordinal.
+
+El truco está en que la codificación original ya es un orden: `1 < 2 < 3` es
+"más frecuente < menos frecuente". Así que **el mínimo por renglón es el modo
+público que la persona más usa**, y con eso el valor agregado se lee igual que
+los originales:
+
+- `Cotidiano` — usa al menos un medio público cotidianamente (algún `p1a_i == 1`).
+- `Ocasional` — ninguno cotidiano, pero al menos uno ocasional.
+- `Nunca` — contestó "Nunca" a los siete.
+
+Los `8`/`9` se vuelven `NA` **antes** del mínimo, no después: son no-respuestas
+sobre *un* modo, y no deben invalidar a la persona si contestó los otros seis.
+Solo si los siete son NS/NC queda `NA` — pasa en 1 de 1191 renglones. (Ese
+`min()` sobre puros `NA` devuelve `Inf` con warning; de ahí las dos líneas de
+limpieza.)
+
+```{r}
+frec = as.matrix(data[, paste0("p1a_", 1:7)])
+frec[frec >= 8] = NA                                  # 8 = NS, 9 = NC
+
+mejor = suppressWarnings(apply(frec, 1, min, na.rm = TRUE))
+mejor[is.infinite(mejor)] = NA                        # los 7 modos sin respuesta
+
+data$uso_tp = factor(mejor, levels = 1:3,
+                     labels = c("Cotidiano", "Ocasional", "Nunca"))
+
+table(data$uso_tp, useNA = "ifany")
+```
+
+Queda razonablemente balanceada (651 / 396 / 143), que es justo lo que se
+necesita para que las CPTs condicionadas no salgan huecas.
+
+Se recorta a los 10 nodos del dag_jf y se convierten a `factor`. Las dos cosas son
+necesarias: `bn.fit()` valida el data frame **completo**, así que aunque el dag_jf
 no incluya `p1a_1` ni `Pondi2`, basta con que sigan en `data` para que truene.
 (`Pondi2` además es el factor de expansión muestral: un número de verdad, no una
-categoría.) Al agregar los `p1a_1` … `p1a_22` pendientes, solo se añaden al
-vector `nodos`.
+categoría.) Nótese que los `p1a_1` … `p1a_7` **no** entran: ya están resumidos
+dentro de `uso_tp`.
+
+También se tira el único renglón con `uso_tp = NA`: `bn.fit()` no acepta
+faltantes, y 1 de 1191 no cambia nada.
 
 ```{r}
 nodos = c("edad_1", "estrato", "escol", "sexo", "h21_1",
-          "Tam_loc", "ing_fam", "p17_1", "p17_4", "p1a_12")
+          "Tam_loc", "ing_fam", "p17_1", "p17_4", "uso_tp")
 
 data = data[, nodos]
+data = data[!is.na(data$uso_tp), ]
 data[] = lapply(data, factor)
 str(data)
 ```
 
 ## Estructura de la red
 
-Se construye el DAG en dos pasos: primero un grafo vacío con los nodos, después
+Se construye el dag_jf en dos pasos: primero un grafo vacío con los nodos, después
 se le asignan los arcos. Es la alternativa a `model2network()` cuando hay muchos
 arcos y conviene listarlos como tabla.
 
 Los 10 nodos son exactamente los que aparecen en `arc_set`: si `empty.graph()`
-declarara alguno de más o de menos, `arcs(dag) = arc_set` fallaría.
+declarara alguno de más o de menos, `arcs(dag_jf) = arc_set` fallaría.
 
 ```{r}
-dag = empty.graph(nodes = c("edad_1", "estrato", "escol", "sexo", "h21_1",
-                            "Tam_loc", "ing_fam", "p17_1", "p17_4", "p1a_12"))
+dag_jf = empty.graph(nodes = c("edad_1", "estrato", "escol", "sexo", "h21_1",
+                            "Tam_loc", "ing_fam", "p17_1", "p17_4", "uso_tp"))
 ```
 
 Cada renglón de la matriz es un arco `from → to`. Con `byrow = TRUE` la matriz se
@@ -133,14 +180,17 @@ propuesta es:
   ocupación y del tamaño de localidad.
 - `Tam_loc → p17_1`, `Tam_loc → p17_4` — la percepción de eficiencia y seguridad
   del transporte público depende del tamaño de la localidad.
-- `ing_fam → p1a_12`, `p17_1 → p1a_12`, `p17_4 → p1a_12` — el uso del automóvil
-  particular depende del ingreso y de qué tan mal se percibe el transporte
-  público.
+- `ing_fam → uso_tp`, `p17_1 → uso_tp`, `p17_4 → uso_tp` — el uso del transporte
+  público depende del ingreso (quien puede pagar auto tiene con qué sustituirlo)
+  y de qué tan bien se le percibe.
 
-Es decir, los sociodemográficos influyen en el uso del auto solo de forma
-**indirecta**, vía ingreso y percepción del transporte público. El comentario
-`# Aqui son los nodos p1-22` marca dónde entrarían el resto de los medios de
-transporte (`p1a_1` … `p1a_22`), aún pendientes.
+Es decir, los sociodemográficos influyen en el uso del transporte público solo de
+forma **indirecta**, vía ingreso y percepción. En particular `Tam_loc` llega a
+`uso_tp` únicamente por los tres caminos `Tam_loc → ing_fam → uso_tp`,
+`Tam_loc → p17_1 → uso_tp` y `Tam_loc → p17_4 → uso_tp`: se decidió **no** poner
+un arco directo `Tam_loc → uso_tp` para mantener la CPT en 3 padres
+(3 × 8·2·2 = 96 parámetros en vez de 384, que con 1190 filas ya deja celdas
+huecas).
 
 ```{r}
 arc_set = matrix(c("edad_1", "escol",
@@ -151,28 +201,27 @@ arc_set = matrix(c("edad_1", "escol",
                    "Tam_loc", "ing_fam",
                    "Tam_loc", "p17_1",
                    "Tam_loc", "p17_4",
-                #    Aqui son los nodos p1-22
-                   "ing_fam", "p1a_12",
-                   "p17_1", "p1a_12",
-                   "p17_4", "p1a_12"
+                   "ing_fam", "uso_tp",
+                   "p17_1", "uso_tp",
+                   "p17_4", "uso_tp"
                    ),
                  byrow = TRUE, ncol = 2,
                  dimnames = list(NULL, c("from", "to")))
 ```
 
-`arcs(dag) =` inyecta los arcos y valida que el resultado siga siendo acíclico.
-Imprimir `dag` muestra el modelo, los arcos y el tamaño del espacio de
+`arcs(dag_jf) =` inyecta los arcos y valida que el resultado siga siendo acíclico.
+Imprimir `dag_jf` muestra el modelo, los arcos y el tamaño del espacio de
 parámetros.
 
 ```{r}
-arcs(dag) = arc_set
-dag
+arcs(dag_jf) = arc_set
+dag_jf
 ```
 
 Visualizacion de grafico de nodos con `graphviz`
 
 ```{r}
-graphviz.plot(dag, shape = "ellipse")
+graphviz.plot(dag_jf, shape = "ellipse")
 ```
 
 ## Ajuste de parámetros
@@ -184,7 +233,7 @@ combinación de padres tiene pocas observaciones (con 1191 filas y padres de
 varios niveles, aquí es un riesgo real: las CPTs con celdas vacías salen `NaN`).
 
 ```{r}
-bn_mle = bn.fit(dag, data = data, method = "mle")
+bn_mle = bn.fit(dag_jf, data = data, method = "mle")
 bn_mle
 ```
 
@@ -199,8 +248,6 @@ bn_mle$h21_1
 
 ## Pruebas de independencia condicional
 
-**[plantilla — todos los bloques de esta sección]**
-
 `ci.test()` prueba $H_0$: los dos primeros argumentos son independientes dado el
 tercero. Un p-valor grande apoya la independencia, y por tanto la ausencia de un
 arco directo entre ambos. Sirve para justificar la estructura propuesta.
@@ -211,155 +258,106 @@ corren las dos como verificación cruzada.
 
 ```{r}
 set.seed(1)
-ci.test('p1a_12', 'h21_1', c('p17_1','p17_4'), test = 'mi', data = data)
+ci.test('uso_tp', 'h21_1', c('p17_1','p17_4'), test = 'mi', data = data)
 ```
 
 ```{r}
-ci.test('p1a_12', 'h21_1', c('p17_1','p17_4'), test = 'x2', data = data)
+ci.test('uso_tp', 'h21_1', c('p17_1','p17_4'), test = 'x2', data = data)
 ```
 
 ```{r}
-ci.test('p1a_12', 'h21_1', c('p17_1','p17_4'), test = 'mc-x2', data = data)
+ci.test('uso_tp', 'h21_1', c('p17_1','p17_4'), test = 'mc-x2', data = data)
 ```
 
 **Aquí se condiciona en una sola variable en lugar de dos.**
 
 ```{r}
-ci.test('p1a_12', 'h21_1', 'p17_1', test = 'x2', data = data)
+ci.test('uso_tp', 'h21_1', 'p17_1', test = 'x2', data = data)
 ```
 
 ```{r}
-ci.test('p1a_12', 'h21_1', 'p17_4', test = 'x2', data = data)
+ci.test('uso_tp', 'h21_1', 'p17_4', test = 'x2', data = data)
 ```
 
- > Hay evidencia (p ≈ 0.04 por permutación) de que el uso del automóvil particular se relaciona con la ocupación, aun controlando por la eficiencia percibida del transporte público — y por separado, aun controlando por la seguridad percibida. La asociación es consistente con el modelo propuesto, en el que la ocupación influye sobre el uso del auto a través del ingreso familiar.
+ > Hay evidencia fuerte (x² = 194.9, df = 136, p ≈ 0.0007) de que el uso del transporte público se relaciona con la ocupación, aun controlando por la eficiencia y la seguridad percibidas — y por separado con cada una (p ≈ 1e-5 y p ≈ 2e-4). La asociación es consistente con el modelo propuesto, en el que la ocupación influye sobre el uso del transporte público a través del ingreso familiar.
 
-**!IMPORTANTE!**
-### Aquí deja de renderizarse el notebook, y queda el resto de codigo como plantilla
+Con `p1a_12` (automóvil particular) como nodo respuesta esta misma prueba salía
+apenas al borde (p ≈ 0.04 por permutación). Al agregar los siete modos públicos
+en `uso_tp` la señal es mucho más limpia: colapsar reduce los grados de libertad
+y concentra la frecuencia en tres celdas en lugar de repartirla.
+
+## Respuesta a la pregunta
+
+> **¿Cuál es la probabilidad de que personas con altos ingresos en localidades
+> grandes se muevan en transporte público si es eficiente y seguro?**
+
+Traducida a evidencia sobre la red:
+
+| Condición | Variable | Valor |
+|---|---|---|
+| altos ingresos | `ing_fam` | `7` (5–6 SM) u `8` (más de 5 SM) |
+| localidad grande | `Tam_loc` | `1` (100 000+ habitantes) |
+| es eficiente | `p17_1` | `1` (Eficiente) |
+| es seguro | `p17_4` | `1` (Seguro) |
+
+Aquí se ajusta con `method = "bayes"` y no con `"mle"`: la evidencia es una
+combinación específica de cuatro condiciones, y con MLE varias celdas de la CPT
+salen `0` o `NaN` por falta de observaciones, lo que sesga el muestreo.
+
+`method = "lw"` (*likelihood weighting*) en vez del muestreo por rechazo por lo
+mismo — la evidencia es rara (61 de 1190 filas la cumplen), así que rechazar
+descartaría casi todas las simulaciones. `lw` fija la evidencia y pondera. Exige
+pasarla como `list()`, lo cual además permite `ing_fam = c("7", "8")` para
+aceptar cualquiera de los dos niveles altos.
 
 ```{r}
-#| include: false
-knitr::opts_chunk$set(eval = FALSE)
+bn = bn.fit(dag_jf, data = data, method = "bayes")
+
+evidencia = list(ing_fam = c("7", "8"), Tam_loc = "1", p17_1 = "1", p17_4 = "1")
+
+set.seed(42)
+cpquery(bn, event = (uso_tp == "Cotidiano"), evidence = evidencia,
+        method = "lw", n = 10^6)
 ```
 
-## Fuerza de los arcos y scores del modelo
-
-`arc.strength()` cuantifica qué tanto se pierde al quitar cada arco. Con
-`criterion = "mi"` reporta el p-valor de la prueba de independencia
-correspondiente: valores cercanos a 0 indican arcos que sí hacen falta.
-
-```{r}
-arc.strength(dag, data = data, criterion = "mi")
-```
-
-`score()` da un valor global de qué tan bien la estructura explica los datos,
-penalizando la complejidad. BIC penaliza más que AIC, así que tiende a elegir
-redes más simples. **Son negativos y sirven para comparar: menos negativo es
-mejor.** Solo tienen sentido comparados contra otra estructura sobre los mismos
-datos — que es justo lo que se hace más abajo con `best_dag`.
-
-```{r}
-score(dag, data = data, type = "bic")
-```
-
-```{r}
-score(dag, data = data, type = "aic")
-```
-
-## Aprendizaje de estructura
-
-En lugar de proponer el DAG a mano, `hc()` (*hill-climbing*) lo busca: parte de
-un grafo vacío y va agregando, quitando o invirtiendo arcos, quedándose en cada
-paso con el cambio que más sube el score. Es un método voraz, así que puede caer
-en un óptimo local.
-
-::: {.callout-note}
-`hc(data)` corre sobre **las 33 columnas** del data frame, no solo sobre las 10
-del DAG propuesto. Incluye `Pondi2`, que es el factor de expansión muestral
-(numérico, no categórico) — mezclar numéricas y factores hace fallar el ajuste
-discreto. Conviene pasarle un subconjunto: `hc(data[, c("edad_1", "escol", ...)])`.
-:::
-
-```{r}
-best_dag = hc(data)
-best_dag
-```
-
-`modelstring()` convierte el DAG aprendido a la notación compacta
-`[hijo|padre1:padre2]`, útil para copiarla a `model2network()` y reproducir la
-estructura sin volver a correr la búsqueda.
-
-```{r}
-modelstring(best_dag)
-```
-
-La comparación clave: estos scores contra los de `dag`. Si los de `best_dag` son
-mejores (menos negativos), la estructura propuesta a mano está dejando
-información sobre la mesa.
-
-```{r}
-score(best_dag, data = data, type = 'bic')
-score(best_dag, data = data, type = 'aic')
-```
-
-Graficar requiere `Rgraphviz`, que vive en Bioconductor y no en CRAN — por eso se
-instala vía `BiocManager` y no con `install.packages()`. Alternativa sin
-dependencias: `plot(best_dag)`.
-
-```{r}
-#| eval: false
-#| echo: false
-install.packages("BiocManager")
-BiocManager::install("Rgraphviz")
-```
-
-```{r}
-graphviz.plot(best_dag, shape = "ellipse")
-```
-
-## Consultas condicionales
-
-Se reajustan las CPTs, ahora sobre la estructura aprendida, para poder consultar
-el modelo.
-
-```{r}
-bn = bn.fit(best_dag, data = data)
-```
-
-**[plantilla — todos los bloques de esta sección]**
-
-`cpquery()` estima $P(\text{event} \mid \text{evidence})$ por **simulación**, no
-de forma exacta: genera `n` observaciones de la red y calcula la proporción. Por
-eso hace falta `set.seed()` para reproducir el resultado, y por eso `n = 10^6`
-— con pocas muestras la estimación es ruidosa, sobre todo si la evidencia es
-poco probable.
+Es decir, **≈ 59 %** usa transporte público *cotidianamente* bajo esas
+condiciones. Como `uso_tp` tiene tres niveles, la misma variable contesta también
+la lectura laxa de "se mueve en transporte público" (cotidiana **u**
+ocasionalmente):
 
 ```{r}
 set.seed(42)
-cpquery(bn, event = (T == "train") & (S == "F"), evidence = (E == "uni"), n = 10^6)
+cpquery(bn, event = (uso_tp != "Nunca"), evidence = evidencia,
+        method = "lw", n = 10^6)
 ```
 
-`method = "lw"` (*likelihood weighting*) es la alternativa al muestreo por
-rechazo: en lugar de descartar las simulaciones que no cumplen la evidencia, la
-fija y pondera. Es mucho más eficiente cuando la evidencia es rara, pero exige
-pasarla como `list(E = "uni")` en vez de como expresión.
+≈ 82 %. Y el contraste que le da sentido al "si es eficiente y seguro" — misma
+gente, mismo tamaño de localidad, pero con el transporte percibido como
+ineficiente e inseguro:
 
 ```{r}
-cpquery(bn, event = (T == "train") & (S == "F"), evidence = list(E = "uni"), method = "lw")
+set.seed(42)
+cpquery(bn, event = (uso_tp == "Cotidiano"),
+        evidence = list(ing_fam = c("7", "8"), Tam_loc = "1",
+                        p17_1 = "2", p17_4 = "2"),
+        method = "lw", n = 10^6)
 ```
 
-### Quien se transporta más en tren, jovenes en la universidad o adultos?
+≈ 55 %. La diferencia es de apenas ~4 puntos: para este grupo, la percepción de
+calidad del transporte público **mueve poco la aguja**. Contraintuitivo, pero
+coherente con el dag_jf — en localidades grandes el uso cotidiano está sostenido
+por la disponibilidad de la red, no por lo bien que se le califique.
 
-Nota: en ambos bloques `event` fija el sexo, así que lo que se compara en
-realidad es el uso del tren por sexo bajo la misma evidencia
-(universitario joven **o** adulto), no jóvenes contra adultos. Para contrastar
-jóvenes vs. adultos habría que correr dos consultas cambiando la `evidence`.
+Contraste contra los datos crudos, para verificar que la red no está inventando:
 
-**Mujeres**
 ```{r}
-cpquery(bn, event = (T == "train") & (S == "M"), evidence = (E == "uni" & A == "young") | (A == "adult"), n = 10^6)
+sub = subset(data, ing_fam %in% c("7", "8") & Tam_loc == "1" &
+                   p17_1 == "1" & p17_4 == "1")
+nrow(sub)
+table(sub$uso_tp)
+prop.table(table(sub$uso_tp))
 ```
-**Hombres**
-```{r}
-cpquery(bn, event = (T == "train") & (S == "F"), evidence = (E == "uni" & A == "young") | (A == "adult"), n = 10^6)
-```
+
+37 de 61 = 60.7 % cotidiano en la muestra directa, contra 59 % que estima la red.
+Concuerdan, así que el resultado no depende de la estructura impuesta.
+
