@@ -1,0 +1,228 @@
+---
+title: "Query: hombres y mujeres en la calificación de comodidad del transporte público que usan cotidianamente"
+author: "Mateo Flores"
+format:
+    html:
+        toc: true
+        html-math-method: katex
+        embed-resources: true
+        self-contained-math: true
+        df-print: kable
+editor: source
+---
+
+## Pregunta
+
+> **¿Existen diferencias entre hombres y mujeres en la calificación de comodidad
+> del transporte público que usan cotidianamente?**
+
+## Datos
+
+```{r}
+#| eval: false
+#| echo: false
+
+install.packages("bnlearn")
+```
+
+```{r}
+library(bnlearn)
+```
+
+```{r}
+data = read.csv("/Users/mateoflores/querysSobreTransporte/data/clean_enmt_unam.csv", stringsAsFactors = TRUE)
+head(data)
+```
+
+```{r}
+summary(data)
+```
+
+```{r}
+table(data$SEXO, data$COM)
+```
+
+## Creando la DAG
+
+```{r}
+dag = empty.graph(nodes = c("LOC", "EDAD", "SEXO", "SEG", "COM"))
+```
+
+```{r}
+arc_set = matrix(c("LOC",  "SEG",
+                   "EDAD", "SEG",
+                   "LOC",  "COM",
+                   "EDAD", "COM",
+                   "SEXO", "COM",
+                   "SEG",  "COM"),
+                 byrow = TRUE, ncol = 2,
+                 dimnames = list(NULL, c("from", "to")))
+```
+
+```{r}
+arcs(dag) = arc_set
+dag
+```
+
+```{r}
+graphviz.plot(dag, shape = "ellipse")
+```
+
+## Estimando los parámetros
+
+```{r}
+bn_mle = bn.fit(dag, data = data, method = "mle")
+```
+
+```{r}
+bn_mle$COM
+```
+
+## Significancia de las dependencias
+
+```{r}
+ci.test("COM", "SEXO", c("LOC", "EDAD", "SEG"), test = "mi", data = data)
+```
+
+```{r}
+ci.test("COM", "SEG", c("LOC", "EDAD", "SEXO"), test = "mi", data = data)
+```
+
+```{r}
+ci.test("COM", "LOC", c("EDAD", "SEXO", "SEG"), test = "mi", data = data)
+```
+
+```{r}
+ci.test("COM", "EDAD", c("LOC", "SEXO", "SEG"), test = "mi", data = data)
+```
+
+```{r}
+arc.strength(dag, data = data, criterion = "mi")
+```
+
+## Network scores
+
+```{r}
+score(dag, data = data, type = "bic")
+```
+
+```{r}
+score(dag, data = data, type = "aic")
+```
+
+## Aprendiendo la mejor estructura
+
+```{r}
+best_dag = hc(data)
+modelstring(best_dag)
+```
+
+```{r}
+score(best_dag, data = data, type = "bic")
+```
+
+```{r}
+score(best_dag, data = data, type = "aic")
+```
+
+```{r}
+graphviz.plot(best_dag, shape = "ellipse")
+```
+
+## Respondiendo la query
+
+```{r}
+bn = bn.fit(best_dag, data = data)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (COM == "buena"),
+        evidence = (SEXO == "hombre"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (COM == "buena"),
+        evidence = (SEXO == "mujer"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (COM == "buena"),
+        evidence = (SEXO == "hombre") & (SEG == "seguro"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (COM == "buena"),
+        evidence = (SEXO == "mujer") & (SEG == "seguro"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (COM == "buena"),
+        evidence = (SEXO == "hombre") & (SEG == "inseguro"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn_mle,
+        event = (COM == "buena"),
+        evidence = (SEXO == "mujer") & (SEG == "inseguro"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn,
+        event = (COM == "buena"),
+        evidence = (SEXO == "hombre"),
+        n = 10^6)
+```
+
+```{r}
+set.seed(42)
+cpquery(bn,
+        event = (COM == "buena"),
+        evidence = (SEXO == "mujer"),
+        n = 10^6)
+```
+
+## Revisión con otro indicador
+
+```{r}
+data2 = read.csv("data/clean_enmt_comodidad_alt.csv", stringsAsFactors = TRUE)
+summary(data2)
+```
+
+```{r}
+table(data2$SEXO, data2$COM)
+```
+
+```{r}
+ci.test("COM", "SEXO", c("LOC", "EDAD", "SEG"), test = "mi", data = data2)
+```
+
+```{r}
+ci.test("COM", "SEG", c("LOC", "EDAD", "SEXO"), test = "mi", data = data2)
+```
+
+## Resumen
+
+Casi no hay diferencia. De los hombres, 189 de 345 califican la comodidad como buena
+(55%); de las mujeres, 169 de 284 (60%). Los cpquery dan 0.550 para hombres y 0.597 para
+mujeres: cinco puntos. El ci.test de SEXO da 0.387, muy por arriba de 0.05, así que no
+se puede descartar que sea azar de la muestra. La diferencia tampoco cambia al separar
+por seguridad: entre quienes se sienten seguros son 0.660 y 0.704, y entre quienes se
+sienten inseguros 0.471 y 0.520. Los mismos cinco puntos en los dos grupos.
