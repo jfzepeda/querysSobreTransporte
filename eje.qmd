@@ -224,6 +224,16 @@ Visualizacion de grafico de nodos con `graphviz`
 graphviz.plot(dag_jf, shape = "ellipse")
 ```
 
+```{r}
+score(dag_jf, data = data, type = 'bic')
+score(dag_jf, data = data, type = 'aic')
+```
+
+```{r}
+best_dag = hc(data)
+best_dag
+```
+
 ## Ajuste de parámetros
 
 Con la estructura fija, `bn.fit()` estima las CPTs. `method = "mle"` usa máxima
